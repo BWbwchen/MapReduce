@@ -62,17 +62,21 @@ func (wr *Worker) Map(ctx context.Context, in *rpc.MapInfo) (*rpc.Result, error)
 LOOP:
 	for {
 		select {
-		case mapKV := <-wr.Chan.MapChan:
-			imdKV[i] = append(imdKV[i], mapKV)
-			i = (i + 1) % wr.nReduce
-		case <-done:
-			count += 1
-			if count == len(in.Files) {
+		case mapKV, haveKV := <-wr.Chan.MapChan:
+			if haveKV {
+				imdKV[i] = append(imdKV[i], mapKV)
+				i = (i + 1) % wr.nReduce
+			} else {
 				break LOOP
 			}
-		default:
-			// Nothing
+
+		case <-done:
+			count++
+			if count == len(in.Files) {
+				close(wr.Chan.MapChan)
+			}
 		}
+
 	}
 	log.Trace("[Worker] End partition intermediate kv")
 
