@@ -1,0 +1,27 @@
+syntax = "proto3";
+option go_package = "./;rpc";
+
+service Master {
+    rpc WorkerRegister (WorkerInfo) returns (RegisterResult);
+    // IMD = InterMeDiate
+    rpc UpdateIMDInfo (IMDInfo) returns (UpdateResult);
+}
+
+message WorkerInfo {
+    string uuid = 1;
+    string ip = 2;
+}
+
+message RegisterResult {
+    bool result = 1;
+}
+
+message IMDInfo {
+    string uuid = 1;
+    repeated string filenames = 2;
+}
+
+message UpdateResult {
+    bool result = 1;
+}
+
