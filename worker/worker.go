@@ -17,22 +17,24 @@ type MapFormat (func(string, string, MrContext))
 type ReduceFormat (func(string, []string, MrContext))
 
 type Worker struct {
-	UUID    string
-	ID      int
-	nReduce int
-	Mapf    MapFormat
-	Reducef ReduceFormat
-	Chan    MrContext
-	EndChan chan bool
+	UUID       string
+	ID         int
+	nReduce    int
+	Mapf       MapFormat
+	Reducef    ReduceFormat
+	Chan       MrContext
+	EndChan    chan bool
+	storeInRAM bool
 	rpc.UnimplementedWorkerServer
 }
 
-func newWorker(nReduce int) rpc.WorkerServer {
+func newWorker(nReduce int, inRAM bool) rpc.WorkerServer {
 	return &Worker{
-		UUID:    uuid.New().String(),
-		nReduce: nReduce,
-		Chan:    newMrContext(),
-		EndChan: make(chan bool),
+		UUID:       uuid.New().String(),
+		nReduce:    nReduce,
+		Chan:       newMrContext(),
+		EndChan:    make(chan bool),
+		storeInRAM: inRAM,
 	}
 }
 
@@ -82,7 +84,7 @@ LOOP:
 	log.Trace("[Worker] End partition intermediate kv")
 
 	log.Trace("[Worker] Write intermediate kv to file")
-	filenames := writeIMDToLocalFile(imdKV, wr.UUID)
+	filenames := writeIMDToLocalFile(imdKV, wr.UUID, wr.storeInRAM)
 	log.Trace("[Worker] End Write intermediate kv to file")
 
 	log.Trace("[Worker] Tell Master the intermediate info")
@@ -97,7 +99,7 @@ LOOP:
 	return &rpc.Result{Result: true}, nil
 }
 
-func writeIMDToLocalFile(imdKV [][]KV, uuid string) []string {
+func writeIMDToLocalFile(imdKV [][]KV, uuid string, inRAM bool) []string {
 	var filenames []string
 	// Write to local file
 	for taskId, kvs := range imdKV {
@@ -106,7 +108,12 @@ func writeIMDToLocalFile(imdKV [][]KV, uuid string) []string {
 			content += fmt.Sprintf("%v %v\n", kv.Key, kv.Value)
 		}
 
-		fname := fmt.Sprintf("output/imd-%v-%v.txt", uuid, taskId)
+		var fname string
+		if inRAM {
+			fname = fmt.Sprintf("/dev/shm/imd-%v-%v.txt", uuid, taskId)
+		} else {
+			fname = fmt.Sprintf("output/imd-%v-%v.txt", uuid, taskId)
+		}
 		filenames = append(filenames, fname)
 		file, err := os.Create(fname)
 		if err != nil {

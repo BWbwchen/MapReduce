@@ -18,19 +18,20 @@ import (
 var MasterIP string = ":10000"
 
 func main() {
-	input, plugin, nReducer, nWorker := parseArg()
+	input, plugin, nReducer, nWorker, inRAM := parseArg()
 
 	if nWorker == 0 {
 		os.Exit(0)
 	}
-	job(input, nWorker, nReducer, plugin)
+	job(input, nWorker, nReducer, plugin, inRAM)
 }
 
-func parseArg() ([]string, string, int, int) {
+func parseArg() ([]string, string, int, int, bool) {
 	var files []string
 	var nReducer int64
 	var nWorker int64
 	var plugin string
+	var inRAM bool
 	var rootCmd = &cobra.Command{
 		Use:   "mapreduce",
 		Short: "mapreduce is a easy-to-use parallel framework",
@@ -65,15 +66,16 @@ func parseArg() ([]string, string, int, int) {
 	rootCmd.MarkPersistentFlagRequired("reduce")
 	rootCmd.PersistentFlags().Int64VarP(&nWorker, "worker", "w", 0, "Number of Workers")
 	rootCmd.MarkPersistentFlagRequired("worker")
+	rootCmd.PersistentFlags().BoolVarP(&inRAM, "inRAM", "m", true, "Whether write the intermediate file in RAM")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	return files, plugin, int(nReducer), int(nWorker)
+	return files, plugin, int(nReducer), int(nWorker), inRAM
 }
 
-func job(input []string, nWorker int, nReducer int, plugin string) {
+func job(input []string, nWorker int, nReducer int, plugin string, storeInRAM bool) {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -85,14 +87,14 @@ func job(input []string, nWorker int, nReducer int, plugin string) {
 	// time.Sleep(2 * time.Second)
 	wg.Add(1)
 	go func() {
-		startWorker(plugin, nWorker, nReducer)
+		startWorker(plugin, nWorker, nReducer, storeInRAM)
 		wg.Done()
 	}()
 
 	wg.Wait()
 }
 
-func startWorker(plugin string, nWorker int, nReducer int) {
+func startWorker(plugin string, nWorker int, nReducer int, storeInRAM bool) {
 	if nWorker < nReducer {
 		panic("Need more worker!")
 	}
@@ -109,7 +111,7 @@ func startWorker(plugin string, nWorker int, nReducer int) {
 	for i := 0; i < nWorker; i++ {
 		wg.Add(1)
 		go func(i0 int) {
-			worker.StartWorker(pluginFile, nReducer, fmt.Sprintf(":1000%v", i0+1))
+			worker.StartWorker(pluginFile, nReducer, fmt.Sprintf(":1000%v", i0+1), storeInRAM)
 			wg.Done()
 		}(i)
 	}

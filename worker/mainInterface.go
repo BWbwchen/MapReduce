@@ -17,10 +17,10 @@ func Init(masterIP string) {
 	log.SetLevel(log.TraceLevel)
 }
 
-func StartWorker(pluginFile string, nReduce int, addr string) {
+func StartWorker(pluginFile string, nReduce int, addr string, storeInRAM bool) {
 	// start gRPC server
 	listener, _ := net.Listen("tcp", addr)
-	wr := newWorker(nReduce)
+	wr := newWorker(nReduce, storeInRAM)
 	baseServer := grpc.NewServer()
 	rpc.RegisterWorkerServer(baseServer, wr)
 	go baseServer.Serve(listener)
