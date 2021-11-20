@@ -2,33 +2,75 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
+
 	// "time"
 
 	// "os"
 
 	"github.com/BWbwchen/MapReduce/master"
 	"github.com/BWbwchen/MapReduce/worker"
+	"github.com/spf13/cobra"
 )
 
 var MasterIP string = ":10000"
 
 func main() {
-	var input []string
-	nReducer := 2
-	nWorker := 8
+	input, plugin, nReducer, nWorker := parseArg()
 
-	input = []string{"txt/pg-being_ernest.txt", "txt/pg-grimm.txt"}
-	job(input, nWorker, nReducer, "cmd/wc.so")
-
-	input = []string{}
-	for i := 0; i < nReducer; i++ {
-		input = append(input, fmt.Sprintf("output/mr-out-%v.txt", i))
+	if nWorker == 0 {
+		os.Exit(0)
 	}
-	nReducer = 1
-	nWorker = 2
-	job(input, nWorker, nReducer, "cmd/merge.so")
+	job(input, nWorker, nReducer, plugin)
+}
+
+func parseArg() ([]string, string, int, int) {
+	var files []string
+	var nReducer int64
+	var nWorker int64
+	var plugin string
+	var rootCmd = &cobra.Command{
+		Use:   "mapreduce",
+		Short: "mapreduce is a easy-to-use parallel framework",
+		Long:  `mapreduce is a easy-to-use parallel framework`,
+		Run: func(cmd *cobra.Command, args []string) {
+			tempFiles := []string{}
+
+			for _, f := range files {
+				// expand the file path
+				expandFiles, err := filepath.Glob(f)
+				if err != nil {
+					panic(err)
+				}
+				tempFiles = append(tempFiles, expandFiles...)
+			}
+
+			pluginFiles, err := filepath.Glob(plugin)
+			if err != nil {
+				panic(err)
+			}
+
+			plugin = pluginFiles[0]
+			files = tempFiles
+		},
+	}
+
+	rootCmd.PersistentFlags().StringSliceVarP(&files, "input", "i", []string{}, "Input files")
+	rootCmd.MarkPersistentFlagRequired("input")
+	rootCmd.PersistentFlags().StringVarP(&plugin, "plugin", "p", "", "Plugin .so file")
+	rootCmd.MarkPersistentFlagRequired("plugin")
+	rootCmd.PersistentFlags().Int64VarP(&nReducer, "reduce", "r", 0, "Number of Reducers")
+	rootCmd.MarkPersistentFlagRequired("reduce")
+	rootCmd.PersistentFlags().Int64VarP(&nWorker, "worker", "w", 0, "Number of Workers")
+	rootCmd.MarkPersistentFlagRequired("worker")
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	return files, plugin, int(nReducer), int(nWorker)
 }
 
 func job(input []string, nWorker int, nReducer int, plugin string) {
