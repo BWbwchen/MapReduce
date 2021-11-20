@@ -102,29 +102,55 @@ LOOP:
 func writeIMDToLocalFile(imdKV [][]KV, uuid string, inRAM bool) []string {
 	var filenames []string
 	// Write to local file
+	filenameChan := make(chan string, 20)
+	finishChan := make(chan bool, 2)
 	for taskId, kvs := range imdKV {
-		content := ""
-		for _, kv := range kvs {
-			content += fmt.Sprintf("%v %v\n", kv.Key, kv.Value)
-		}
+		go func(t int, s []KV) {
+			writeIMDToLocalFileParallel(t, s, uuid, inRAM, filenameChan, finishChan)
+		}(taskId, kvs)
+	}
 
-		var fname string
-		if inRAM {
-			fname = fmt.Sprintf("/dev/shm/imd-%v-%v.txt", uuid, taskId)
-		} else {
-			fname = fmt.Sprintf("output/imd-%v-%v.txt", uuid, taskId)
+	count := 0
+LOOP:
+	for {
+		select {
+		case f, more := <-filenameChan:
+			if more {
+				filenames = append(filenames, f)
+			} else {
+				break LOOP
+			}
+		case <-finishChan:
+			count++
+			if count == len(imdKV) {
+				close(filenameChan)
+			}
 		}
-		filenames = append(filenames, fname)
-		file, err := os.Create(fname)
-		if err != nil {
-			panic(err)
-		}
-		defer file.Close()
-
-		// TODO: uncomment
-		file.WriteString(content)
 	}
 	return filenames
+}
+
+func writeIMDToLocalFileParallel(taskId int, kvs []KV, uuid string, inRAM bool, output chan string, finish chan bool) {
+	content := ""
+	for _, kv := range kvs {
+		content += fmt.Sprintf("%v %v\n", kv.Key, kv.Value)
+	}
+
+	var fname string
+	if inRAM {
+		fname = fmt.Sprintf("/dev/shm/imd-%v-%v.txt", uuid, taskId)
+	} else {
+		fname = fmt.Sprintf("output/imd-%v-%v.txt", uuid, taskId)
+	}
+	output <- fname
+	file, err := os.Create(fname)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	file.WriteString(content)
+	finish <- true
 }
 
 func (wr *Worker) Reduce(ctx context.Context, in *rpc.ReduceInfo) (*rpc.Result, error) {
