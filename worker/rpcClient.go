@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func WorkerRegister(w *rpc.WorkerInfo) bool {
+func WorkerRegister(w *rpc.WorkerInfo) int {
 	conn, err := grpc.Dial(MasterIP, grpc.WithInsecure())
 	if err != nil {
 		panic(err)
@@ -18,7 +18,7 @@ func WorkerRegister(w *rpc.WorkerInfo) bool {
 	c := rpc.NewMasterClient(conn)
 	log.Trace("New Master Client")
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	log.Trace("With Time out")
 	defer cancel()
 
@@ -33,7 +33,7 @@ func WorkerRegister(w *rpc.WorkerInfo) bool {
 		panic("Register Error")
 	}
 
-	return r.Result
+	return int(r.Id)
 }
 
 func UpdateIMDInfo(u *rpc.IMDInfo) bool {

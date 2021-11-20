@@ -66,10 +66,7 @@ func End(workerIP string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	_, err = c.End(ctx, &rpc.Empty{})
-	if err != nil {
-		log.Panic(err)
-	}
+	c.End(ctx, &rpc.Empty{})
 
 	return true
 }

@@ -43,4 +43,6 @@ func StartMaster(files []string, nReduce int, addr string) {
 	ms.(*Master).DistributeReduceTask()
 
 	ms.(*Master).EndWorkers()
+
+	baseServer.Stop()
 }

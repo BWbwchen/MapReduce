@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
-	"time"
+	// "time"
 
 	// "os"
 
@@ -12,40 +12,59 @@ import (
 	"github.com/BWbwchen/MapReduce/worker"
 )
 
+var MasterIP string = ":10000"
+
 func main() {
+	var input []string
+	nReducer := 2
+	nWorker := 2
+
+	input = []string{"txt/pg-being_ernest.txt", "txt/pg-grimm.txt"}
+	job(input, nWorker, nReducer, "cmd/wc.so")
+
+	input = []string{}
+	for i := 0; i < nReducer; i++ {
+		input = append(input, fmt.Sprintf("output/mr-out-%v.txt", i))
+	}
+	nReducer = 1
+	nWorker = 2
+	job(input, nWorker, nReducer, "cmd/merge.so")
+}
+
+func job(input []string, nWorker int, nReducer int, plugin string) {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
-		startMaster()
+		startMaster(input, nReducer)
 		wg.Done()
 	}()
 
-	time.Sleep(2 * time.Second)
+	// time.Sleep(2 * time.Second)
 	wg.Add(1)
 	go func() {
-		startWorker()
+		startWorker(plugin, nWorker, nReducer)
 		wg.Done()
 	}()
 
 	wg.Wait()
 }
 
-func startWorker() {
+func startWorker(plugin string, nWorker int, nReducer int) {
+	if nWorker < nReducer {
+		panic("Need more worker!")
+	}
 	// if len(os.Args) < 2 {
 	// 	fmt.Fprintf(os.Stderr, "Usage: mrcoordinator inputfiles...\n")
 	// 	os.Exit(1)
 	// }
-	pluginFile, _ := filepath.Abs("cmd/wc.so")
-
-	nReducer := 1
-	MasterIP := ":10000"
+	pluginFile, _ := filepath.Abs(plugin)
 
 	var wg sync.WaitGroup
 	worker.Init(MasterIP)
 
 	// Start Worker
-	for i := 0; i < nReducer; i++ {
+	for i := 0; i < nWorker; i++ {
 		wg.Add(1)
 		go func(i0 int) {
 			worker.StartWorker(pluginFile, nReducer, fmt.Sprintf(":1000%v", i0+1))
@@ -56,22 +75,18 @@ func startWorker() {
 	wg.Wait()
 }
 
-func startMaster() {
+func startMaster(input []string, nReducer int) {
 	// if len(os.Args) < 2 {
 	// 	fmt.Fprintf(os.Stderr, "Usage: mrcoordinator inputfiles...\n")
 	// 	os.Exit(1)
 	// }
 
-	input := []string{ /* "txt/pg-being_ernest.txt",  */ "txt/pg-grimm.txt"}
 	inputFiles := []string{}
 	for _, s := range input {
 		f, _ := filepath.Abs(s)
 		inputFiles = append(inputFiles, f)
 	}
 	// pluginFile := "../wc.so"
-
-	nReducer := 1
-	MasterIP := ":10000"
 
 	var wg sync.WaitGroup
 	// Start master

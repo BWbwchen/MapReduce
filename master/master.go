@@ -34,26 +34,30 @@ func NewMaster(nReduce int) rpc.MasterServer {
 // gRPC functions
 
 func (ms *Master) WorkerRegister(ctx context.Context, in *rpc.WorkerInfo) (*rpc.RegisterResult, error) {
+	var num int
 	nw := NewWorker(in.Uuid, in.Ip)
 	ms.mux.Lock()
 	ms.Workers = append(ms.Workers, nw)
 	ms.numWorkers++
-	ms.mux.Unlock()
 
 	if ms.numWorkers >= ms.numReducer {
 		ms.enoughWorker <- true
 	}
+	num = ms.numWorkers
+	ms.mux.Unlock()
 	log.Info("[Master] Worker register success")
-	return &rpc.RegisterResult{Result: true}, nil
+	return &rpc.RegisterResult{Result: true, Id: int64(num - 1)}, nil
 }
 
 func (ms *Master) UpdateIMDInfo(ctx context.Context, in *rpc.IMDInfo) (*rpc.UpdateResult, error) {
 	for i, f := range in.Filenames {
+		ms.mux.Lock()
 		ms.ReduceTasks[i].IMDs = append(ms.ReduceTasks[i].IMDs,
 			IMDInfo{
 				IP:       ms.ServiceDiscovey(in.Uuid),
 				FileName: f,
 			})
+		ms.mux.Unlock()
 	}
 	log.Info(fmt.Sprintf("[Master] %v update IMD info success", in.Uuid))
 	return &rpc.UpdateResult{Result: true}, nil
@@ -106,7 +110,11 @@ func (ms *Master) DistributeWork(files []string) {
 }
 
 func (ms *Master) AvailableWorkers() ([]WorkerInfo, int) {
-	return ms.Workers, ms.numWorkers
+	ms.mux.Lock()
+	retInfo := ms.Workers
+	retWorkers := ms.numWorkers
+	ms.mux.Unlock()
+	return retInfo, retWorkers
 }
 
 func lineNums(file string) int {
@@ -130,13 +138,14 @@ func (ms *Master) DistributeMapTask() {
 	log.Trace("[Master] Start Map task")
 	var wg sync.WaitGroup
 	workerID := 0
+	workers, nWorkers := ms.AvailableWorkers()
 	for _, mapTask := range ms.MapTasks {
 		wg.Add(1)
 		go func(task MapTaskInfo, id int) {
-			Map(ms.Workers[id].IP, task.toRPC())
+			Map(workers[id].IP, task.toRPC())
 			wg.Done()
 		}(mapTask, workerID)
-		workerID = (workerID + 1) % ms.numWorkers
+		workerID = (workerID + 1) % nWorkers
 	}
 	wg.Wait()
 	log.Trace("[Master] End Map task")

@@ -30,13 +30,15 @@ func StartWorker(pluginFile string, nReduce int, addr string) {
 	log.Info("Worker load plugin finish")
 
 	// Register itself
-	WorkerRegister(&rpc.WorkerInfo{
+	id := WorkerRegister(&rpc.WorkerInfo{
 		Uuid: wr.(*Worker).UUID,
 		Ip:   addr,
 	})
+	wr.(*Worker).setID(id)
 	log.Info("Worker register itself finish")
 
 	<-wr.(*Worker).EndChan
+	baseServer.Stop()
 }
 
 //

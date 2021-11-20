@@ -18,6 +18,7 @@ type ReduceFormat (func(string, []string, MrContext))
 
 type Worker struct {
 	UUID    string
+	ID      int
 	nReduce int
 	Mapf    MapFormat
 	Reducef ReduceFormat
@@ -132,7 +133,7 @@ func (wr *Worker) Reduce(ctx context.Context, in *rpc.ReduceInfo) (*rpc.Result, 
 	sort.Sort(byKey(imdKVs))
 
 	// outputFile := fmt.Sprintf("output/mr-out-%v.txt", wr.UUID)
-	outputFile := fmt.Sprintf("output/mr-out.txt")
+	outputFile := fmt.Sprintf("output/mr-out-%v.txt", wr.ID)
 	ofile, _ := os.Create(outputFile)
 
 	log.Trace("[Worker] Start Reducing")
@@ -175,6 +176,10 @@ func (wr *Worker) End(ctx context.Context, in *rpc.Empty) (*rpc.Empty, error) {
 }
 
 // Normal Functions
+
+func (wr *Worker) setID(id int) {
+	wr.ID = id
+}
 
 func partialContent(fInfo *rpc.MapFileInfo) string {
 	f, err := os.Open(fInfo.FileName)
