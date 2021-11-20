@@ -16,16 +16,18 @@ type Master struct {
 	MapTasks     []MapTaskInfo
 	ReduceTasks  []ReduceTaskInfo
 	numWorkers   int
+	totalWorkers int
 	numReducer   int
 	enoughWorker chan bool
 	mux          sync.Mutex
 	rpc.UnimplementedMasterServer
 }
 
-func NewMaster(nReduce int) rpc.MasterServer {
+func NewMaster(nWorker int, nReduce int) rpc.MasterServer {
 	return &Master{
 		ReduceTasks:  newReduceTasks(nReduce),
 		numWorkers:   0,
+		totalWorkers: nWorker,
 		numReducer:   nReduce,
 		enoughWorker: make(chan bool, 1),
 	}
@@ -40,9 +42,6 @@ func (ms *Master) WorkerRegister(ctx context.Context, in *rpc.WorkerInfo) (*rpc.
 	ms.Workers = append(ms.Workers, nw)
 	ms.numWorkers++
 
-	if ms.numWorkers >= ms.numReducer {
-		ms.enoughWorker <- true
-	}
 	num = ms.numWorkers
 	ms.mux.Unlock()
 	log.Info("[Master] Worker register success")
@@ -79,8 +78,19 @@ func (ms *Master) ServiceDiscovey(uuid string) string {
 
 func (ms *Master) WaitForEnoughWorker() {
 	log.Trace("[Master] Wait for enough workers")
-	<-ms.enoughWorker
+	nWorker, totalWorker := ms.getWorkerNum()
+	for nWorker < totalWorker {
+		nWorker, totalWorker = ms.getWorkerNum()
+	}
 	log.Trace("[Master] Enough workers!")
+}
+
+func (ms *Master) getWorkerNum() (int, int) {
+	ms.mux.Lock()
+	nWorkers := ms.numWorkers
+	tWorkers := ms.totalWorkers
+	ms.mux.Unlock()
+	return nWorkers, tWorkers
 }
 
 func (ms *Master) DistributeWork(files []string) {

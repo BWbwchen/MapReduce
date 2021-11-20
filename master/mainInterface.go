@@ -18,13 +18,13 @@ func init() {
 	log.SetLevel(log.TraceLevel)
 }
 
-func StartMaster(files []string, nReduce int, addr string) {
+func StartMaster(files []string, nWorker int, nReduce int, addr string) {
 	// start gRPC server
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Panic(err)
 	}
-	ms := NewMaster(nReduce)
+	ms := NewMaster(nWorker, nReduce)
 	baseServer := grpc.NewServer()
 	rpc.RegisterMasterServer(baseServer, ms)
 	go baseServer.Serve(listener)

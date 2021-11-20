@@ -17,7 +17,7 @@ var MasterIP string = ":10000"
 func main() {
 	var input []string
 	nReducer := 2
-	nWorker := 2
+	nWorker := 8
 
 	input = []string{"txt/pg-being_ernest.txt", "txt/pg-grimm.txt"}
 	job(input, nWorker, nReducer, "cmd/wc.so")
@@ -36,7 +36,7 @@ func job(input []string, nWorker int, nReducer int, plugin string) {
 
 	wg.Add(1)
 	go func() {
-		startMaster(input, nReducer)
+		startMaster(input, nWorker, nReducer)
 		wg.Done()
 	}()
 
@@ -75,7 +75,7 @@ func startWorker(plugin string, nWorker int, nReducer int) {
 	wg.Wait()
 }
 
-func startMaster(input []string, nReducer int) {
+func startMaster(input []string, nWorker int, nReducer int) {
 	// if len(os.Args) < 2 {
 	// 	fmt.Fprintf(os.Stderr, "Usage: mrcoordinator inputfiles...\n")
 	// 	os.Exit(1)
@@ -93,7 +93,7 @@ func startMaster(input []string, nReducer int) {
 	// master.StartMaster(os.Args[1:], nReducer, MasterIP)
 	wg.Add(1)
 	go func() {
-		master.StartMaster(inputFiles, nReducer, MasterIP)
+		master.StartMaster(inputFiles, nWorker, nReducer, MasterIP)
 		wg.Done()
 	}()
 
