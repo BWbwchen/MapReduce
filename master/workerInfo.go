@@ -6,13 +6,13 @@ type WorkerInfo struct {
 	WorkerState int
 }
 
-func NewWorker(uuid string, ip string) WorkerInfo {
+func newWorker(uuid string, ip string) WorkerInfo {
 	return WorkerInfo{
 		UUID: uuid,
 		IP:   ip,
 	}
 }
 
-func (w *WorkerInfo) GetIP() string {
+func (w *WorkerInfo) getIP() string {
 	return w.IP
 }

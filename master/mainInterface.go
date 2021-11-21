@@ -32,17 +32,17 @@ func StartMaster(files []string, nWorker int, nReduce int, addr string) {
 	log.Info("[Master] Master gRPC server start")
 
 	// Check the worker is enough
-	ms.(*Master).WaitForEnoughWorker()
+	ms.(*Master).waitForEnoughWorker()
 
 	// Split input file (100,000 lines per chunk)
-	ms.(*Master).DistributeWork(files)
+	ms.(*Master).distributeWork(files)
 
-	ms.(*Master).DistributeMapTask()
+	ms.(*Master).distributeMapTask()
 
 	// TODO: uncomment
-	ms.(*Master).DistributeReduceTask()
+	ms.(*Master).distributeReduceTask()
 
-	ms.(*Master).EndWorkers()
+	ms.(*Master).endWorkers()
 
 	baseServer.Stop()
 }

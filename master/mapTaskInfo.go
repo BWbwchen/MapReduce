@@ -18,7 +18,7 @@ type FileInfo struct {
 	To       int
 }
 
-func (mt *MapTaskInfo) AddFile(file string, from int, to int) {
+func (mt *MapTaskInfo) addFile(file string, from int, to int) {
 	mt.Files = append(mt.Files, FileInfo{
 		FileName: file,
 		From:     from,

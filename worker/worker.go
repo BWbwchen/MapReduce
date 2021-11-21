@@ -46,7 +46,6 @@ func (wr *Worker) Map(ctx context.Context, in *rpc.MapInfo) (*rpc.Result, error)
 	done := make(chan int, 100)
 	for _, fInfo := range in.Files {
 		content := partialContent(fInfo)
-		// Call wr.Mapf
 		go func(f0 *rpc.MapFileInfo, c0 string) {
 			wr.Mapf(f0.FileName, c0, wr.Chan)
 			done <- 1
@@ -97,6 +96,31 @@ LOOP:
 	log.Info("[Worker] Finish Map Task")
 
 	return &rpc.Result{Result: true}, nil
+}
+
+func partialContent(fInfo *rpc.MapFileInfo) string {
+	f, err := os.Open(fInfo.FileName)
+	if err != nil {
+		panic(err)
+	}
+
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+
+	line := 0
+	content := ""
+
+	for scanner.Scan() {
+		if int(fInfo.From) <= line && line < int(fInfo.To) {
+			content += scanner.Text() + "\n"
+		} else if line >= int(fInfo.To) {
+			break
+		}
+		line++
+	}
+
+	return content
 }
 
 func writeIMDToLocalFile(imdKV [][]KV, uuid string, inRAM bool) []string {
@@ -165,8 +189,7 @@ func (wr *Worker) Reduce(ctx context.Context, in *rpc.ReduceInfo) (*rpc.Result, 
 	// Sort
 	sort.Sort(byKey(imdKVs))
 
-	// outputFile := fmt.Sprintf("output/mr-out-%v.txt", wr.UUID)
-	outputFile := fmt.Sprintf("output/mr-out-%v.txt", wr.ID)
+	outputFile := fmt.Sprintf("mr-out-%v.txt", wr.ID)
 	ofile, _ := os.Create(outputFile)
 
 	log.Trace("[Worker] Start Reducing")
@@ -184,7 +207,7 @@ func (wr *Worker) Reduce(ctx context.Context, in *rpc.ReduceInfo) (*rpc.Result, 
 		wr.Reducef(imdKVs[i].Key, values, wr.Chan)
 
 		output := <-wr.Chan.ReduceChan
-		// this is the correct format for each line of Reduce output.
+
 		fmt.Fprintf(ofile, "%v %v\n", output.Key, output.Value)
 
 		i = j
@@ -200,43 +223,6 @@ func (wr *Worker) GetIMDData(ctx context.Context, in *rpc.IMDLoc) (*rpc.KVs, err
 	return &rpc.KVs{
 		Kvs: generateIMDKV(in.Filename),
 	}, nil
-}
-
-func (wr *Worker) End(ctx context.Context, in *rpc.Empty) (*rpc.Empty, error) {
-	log.Info("[Worker] End worker")
-	wr.EndChan <- true
-	return &rpc.Empty{}, nil
-}
-
-// Normal Functions
-
-func (wr *Worker) setID(id int) {
-	wr.ID = id
-}
-
-func partialContent(fInfo *rpc.MapFileInfo) string {
-	f, err := os.Open(fInfo.FileName)
-	if err != nil {
-		panic(err)
-	}
-
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-
-	line := 0
-	content := ""
-
-	for scanner.Scan() {
-		if int(fInfo.From) <= line && line < int(fInfo.To) {
-			content += scanner.Text() + "\n"
-		} else if line >= int(fInfo.To) {
-			break
-		}
-		line++
-	}
-
-	return content
 }
 
 func generateIMDKV(file string) []*rpc.KV {
@@ -260,4 +246,14 @@ func generateIMDKV(file string) []*rpc.KV {
 	}
 
 	return Kvs
+}
+
+func (wr *Worker) End(ctx context.Context, in *rpc.Empty) (*rpc.Empty, error) {
+	log.Info("[Worker] End worker")
+	wr.EndChan <- true
+	return &rpc.Empty{}, nil
+}
+
+func (wr *Worker) setID(id int) {
+	wr.ID = id
 }

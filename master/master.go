@@ -37,7 +37,7 @@ func NewMaster(nWorker int, nReduce int) rpc.MasterServer {
 
 func (ms *Master) WorkerRegister(ctx context.Context, in *rpc.WorkerInfo) (*rpc.RegisterResult, error) {
 	var num int
-	nw := NewWorker(in.Uuid, in.Ip)
+	nw := newWorker(in.Uuid, in.Ip)
 	ms.mux.Lock()
 	ms.Workers = append(ms.Workers, nw)
 	ms.numWorkers++
@@ -49,25 +49,25 @@ func (ms *Master) WorkerRegister(ctx context.Context, in *rpc.WorkerInfo) (*rpc.
 }
 
 func (ms *Master) UpdateIMDInfo(ctx context.Context, in *rpc.IMDInfo) (*rpc.UpdateResult, error) {
+	ms.mux.Lock()
 	for i, f := range in.Filenames {
-		ms.mux.Lock()
 		ms.ReduceTasks[i].IMDs = append(ms.ReduceTasks[i].IMDs,
 			IMDInfo{
-				IP:       ms.ServiceDiscovey(in.Uuid),
+				IP:       ms.serviceDiscovey(in.Uuid),
 				FileName: f,
 			})
-		ms.mux.Unlock()
 	}
+	ms.mux.Unlock()
 	log.Info(fmt.Sprintf("[Master] %v update IMD info success", in.Uuid))
 	return &rpc.UpdateResult{Result: true}, nil
 }
 
-func (ms *Master) ServiceDiscovey(uuid string) string {
+func (ms *Master) serviceDiscovey(uuid string) string {
 	var ip string
 
 	for _, wi := range ms.Workers {
 		if wi.UUID == uuid {
-			ip = wi.GetIP()
+			ip = wi.getIP()
 		}
 	}
 
@@ -76,7 +76,7 @@ func (ms *Master) ServiceDiscovey(uuid string) string {
 
 // Normal Functions
 
-func (ms *Master) WaitForEnoughWorker() {
+func (ms *Master) waitForEnoughWorker() {
 	log.Trace("[Master] Wait for enough workers")
 	nWorker, totalWorker := ms.getWorkerNum()
 	for nWorker < totalWorker {
@@ -93,9 +93,9 @@ func (ms *Master) getWorkerNum() (int, int) {
 	return nWorkers, tWorkers
 }
 
-func (ms *Master) DistributeWork(files []string) {
+func (ms *Master) distributeWork(files []string) {
 	log.Trace("[Master] Start distribute workload")
-	_, numWorkers := ms.AvailableWorkers()
+	_, numWorkers := ms.availableWorkers()
 	// Initialize MapTasks
 	ms.MapTasks = newMapTasks(numWorkers)
 
@@ -112,14 +112,14 @@ func (ms *Master) DistributeWork(files []string) {
 				workLoad++
 			}
 
-			ms.MapTasks[i].AddFile(file, from, from+workLoad)
+			ms.MapTasks[i].addFile(file, from, from+workLoad)
 			from += workLoad
 		}
 	}
 	log.Trace("[Master] End distribute workload")
 }
 
-func (ms *Master) AvailableWorkers() ([]WorkerInfo, int) {
+func (ms *Master) availableWorkers() ([]WorkerInfo, int) {
 	ms.mux.Lock()
 	retInfo := ms.Workers
 	retWorkers := ms.numWorkers
@@ -144,11 +144,11 @@ func lineNums(file string) int {
 	return num
 }
 
-func (ms *Master) DistributeMapTask() {
+func (ms *Master) distributeMapTask() {
 	log.Trace("[Master] Start Map task")
 	var wg sync.WaitGroup
 	workerID := 0
-	workers, nWorkers := ms.AvailableWorkers()
+	workers, nWorkers := ms.availableWorkers()
 	for _, mapTask := range ms.MapTasks {
 		wg.Add(1)
 		go func(task MapTaskInfo, id int) {
@@ -161,8 +161,7 @@ func (ms *Master) DistributeMapTask() {
 	log.Trace("[Master] End Map task")
 }
 
-func (ms *Master) DistributeReduceTask() {
-	// TODO: call workers's gRPC functions
+func (ms *Master) distributeReduceTask() {
 	log.Trace("[Master] Start Reduce task")
 	var wg sync.WaitGroup
 	workerID := 0
@@ -178,7 +177,7 @@ func (ms *Master) DistributeReduceTask() {
 	log.Trace("[Master] End Reduce task")
 }
 
-func (ms *Master) EndWorkers() {
+func (ms *Master) endWorkers() {
 	log.Trace("[Master] End Workers Start")
 	for _, worker := range ms.Workers {
 		End(worker.IP)

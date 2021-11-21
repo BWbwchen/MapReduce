@@ -18,13 +18,6 @@ import (
 
 var MasterIP string = ":10000"
 
-func StartSingleMachineJob(input []string, plugin string, nReducer int, nWorker int, inRAM bool) {
-	if len(input) == 0 {
-		os.Exit(0)
-	}
-	job(input, nWorker, nReducer, plugin, inRAM)
-}
-
 func ParseArg() ([]string, string, int, int, bool) {
 	var files []string
 	var nReducer int64
@@ -77,6 +70,13 @@ func ParseArg() ([]string, string, int, int, bool) {
 	return files, plugin, int(nReducer), int(nWorker), inRAM
 }
 
+func StartSingleMachineJob(input []string, plugin string, nReducer int, nWorker int, inRAM bool) {
+	if len(input) == 0 {
+		os.Exit(0)
+	}
+	job(input, nWorker, nReducer, plugin, inRAM)
+}
+
 func job(input []string, nWorker int, nReducer int, plugin string, storeInRAM bool) {
 	var wg sync.WaitGroup
 
@@ -86,7 +86,6 @@ func job(input []string, nWorker int, nReducer int, plugin string, storeInRAM bo
 		wg.Done()
 	}()
 
-	// time.Sleep(2 * time.Second)
 	wg.Add(1)
 	go func() {
 		startWorker(plugin, nWorker, nReducer, storeInRAM)
@@ -100,10 +99,7 @@ func startWorker(plugin string, nWorker int, nReducer int, storeInRAM bool) {
 	if nWorker < nReducer {
 		panic("Need more worker!")
 	}
-	// if len(os.Args) < 2 {
-	// 	fmt.Fprintf(os.Stderr, "Usage: mrcoordinator inputfiles...\n")
-	// 	os.Exit(1)
-	// }
+
 	pluginFile, _ := filepath.Abs(plugin)
 
 	var wg sync.WaitGroup
@@ -122,17 +118,11 @@ func startWorker(plugin string, nWorker int, nReducer int, storeInRAM bool) {
 }
 
 func startMaster(input []string, nWorker int, nReducer int) {
-	// if len(os.Args) < 2 {
-	// 	fmt.Fprintf(os.Stderr, "Usage: mrcoordinator inputfiles...\n")
-	// 	os.Exit(1)
-	// }
-
 	inputFiles := []string{}
 	for _, s := range input {
 		f, _ := filepath.Abs(s)
 		inputFiles = append(inputFiles, f)
 	}
-	// pluginFile := "../wc.so"
 
 	var wg sync.WaitGroup
 	// Start master
