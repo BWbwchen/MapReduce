@@ -2,8 +2,7 @@
 
 [<img alt="github" src="https://img.shields.io/badge/github-BWbwchen%2FMapReduce-blue?style=for-the-badge&logo=appveyor" height="20">](https://github.com/BWbwchen/MapReduce)
 [<img alt="build status" src="https://img.shields.io/github/workflow/status/BWbwchen/MapReduce/Go/master?style=for-the-badge" height="20">](https://github.com/BWbwchen/MapReduce/actions?query=branch%3Amaster)
-
-
+[![Go Reference](https://pkg.go.dev/badge/github.com/BWbwchen/MapReduce.svg)](https://pkg.go.dev/github.com/BWbwchen/MapReduce)
 
 This is an easy-to-use Map Reduce Go framework inspired by [2021 6.824 lab1](http://nil.csail.mit.edu/6.824/2021/labs/lab-mr.html).
 
