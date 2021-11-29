@@ -8,6 +8,8 @@ service Worker {
     rpc GetIMDData (IMDLoc) returns (KVs);
     /* rpc HealthCheck (IMDInfo) returns (UpdateResult); */
     rpc End(Empty) returns(Empty);
+
+    rpc Health(Empty) returns(WorkerState);
 }
 
 message Empty {
@@ -49,5 +51,14 @@ message KVs {
 message KV {
     string key = 1;
     string value = 2;
+}
+
+message WorkerState {
+    enum State {
+        IDLE = 0;
+        BUSY = 1;
+    }
+
+    State state = 1;
 }
 

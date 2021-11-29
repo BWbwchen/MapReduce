@@ -20,6 +20,52 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type WorkerState_State int32
+
+const (
+	WorkerState_IDLE WorkerState_State = 0
+	WorkerState_BUSY WorkerState_State = 1
+)
+
+// Enum value maps for WorkerState_State.
+var (
+	WorkerState_State_name = map[int32]string{
+		0: "IDLE",
+		1: "BUSY",
+	}
+	WorkerState_State_value = map[string]int32{
+		"IDLE": 0,
+		"BUSY": 1,
+	}
+)
+
+func (x WorkerState_State) Enum() *WorkerState_State {
+	p := new(WorkerState_State)
+	*p = x
+	return p
+}
+
+func (x WorkerState_State) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorkerState_State) Descriptor() protoreflect.EnumDescriptor {
+	return file_rpc_worker_proto_enumTypes[0].Descriptor()
+}
+
+func (WorkerState_State) Type() protoreflect.EnumType {
+	return &file_rpc_worker_proto_enumTypes[0]
+}
+
+func (x WorkerState_State) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorkerState_State.Descriptor instead.
+func (WorkerState_State) EnumDescriptor() ([]byte, []int) {
+	return file_rpc_worker_proto_rawDescGZIP(), []int{9, 0}
+}
+
 type Empty struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -474,6 +520,53 @@ func (x *KV) GetValue() string {
 	return ""
 }
 
+type WorkerState struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	State WorkerState_State `protobuf:"varint,1,opt,name=state,proto3,enum=WorkerState_State" json:"state,omitempty"`
+}
+
+func (x *WorkerState) Reset() {
+	*x = WorkerState{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_rpc_worker_proto_msgTypes[9]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *WorkerState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkerState) ProtoMessage() {}
+
+func (x *WorkerState) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_worker_proto_msgTypes[9]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkerState.ProtoReflect.Descriptor instead.
+func (*WorkerState) Descriptor() ([]byte, []int) {
+	return file_rpc_worker_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *WorkerState) GetState() WorkerState_State {
+	if x != nil {
+		return x.State
+	}
+	return WorkerState_IDLE
+}
+
 var File_rpc_worker_proto protoreflect.FileDescriptor
 
 var file_rpc_worker_proto_rawDesc = []byte{
@@ -504,15 +597,23 @@ var file_rpc_worker_proto_rawDesc = []byte{
 	0x56, 0x52, 0x03, 0x6b, 0x76, 0x73, 0x22, 0x2c, 0x0a, 0x02, 0x4b, 0x56, 0x12, 0x10, 0x0a, 0x03,
 	0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14,
 	0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76,
-	0x61, 0x6c, 0x75, 0x65, 0x32, 0x76, 0x0a, 0x06, 0x57, 0x6f, 0x72, 0x6b, 0x65, 0x72, 0x12, 0x18,
-	0x0a, 0x03, 0x4d, 0x61, 0x70, 0x12, 0x08, 0x2e, 0x4d, 0x61, 0x70, 0x49, 0x6e, 0x66, 0x6f, 0x1a,
-	0x07, 0x2e, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x12, 0x1e, 0x0a, 0x06, 0x52, 0x65, 0x64, 0x75,
-	0x63, 0x65, 0x12, 0x0b, 0x2e, 0x52, 0x65, 0x64, 0x75, 0x63, 0x65, 0x49, 0x6e, 0x66, 0x6f, 0x1a,
-	0x07, 0x2e, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x12, 0x1b, 0x0a, 0x0a, 0x47, 0x65, 0x74, 0x49,
-	0x4d, 0x44, 0x44, 0x61, 0x74, 0x61, 0x12, 0x07, 0x2e, 0x49, 0x4d, 0x44, 0x4c, 0x6f, 0x63, 0x1a,
-	0x04, 0x2e, 0x4b, 0x56, 0x73, 0x12, 0x15, 0x0a, 0x03, 0x45, 0x6e, 0x64, 0x12, 0x06, 0x2e, 0x45,
-	0x6d, 0x70, 0x74, 0x79, 0x1a, 0x06, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x42, 0x08, 0x5a, 0x06,
-	0x2e, 0x2f, 0x3b, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x61, 0x6c, 0x75, 0x65, 0x22, 0x54, 0x0a, 0x0b, 0x57, 0x6f, 0x72, 0x6b, 0x65, 0x72, 0x53, 0x74,
+	0x61, 0x74, 0x65, 0x12, 0x28, 0x0a, 0x05, 0x73, 0x74, 0x61, 0x74, 0x65, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0e, 0x32, 0x12, 0x2e, 0x57, 0x6f, 0x72, 0x6b, 0x65, 0x72, 0x53, 0x74, 0x61, 0x74, 0x65,
+	0x2e, 0x53, 0x74, 0x61, 0x74, 0x65, 0x52, 0x05, 0x73, 0x74, 0x61, 0x74, 0x65, 0x22, 0x1b, 0x0a,
+	0x05, 0x53, 0x74, 0x61, 0x74, 0x65, 0x12, 0x08, 0x0a, 0x04, 0x49, 0x44, 0x4c, 0x45, 0x10, 0x00,
+	0x12, 0x08, 0x0a, 0x04, 0x42, 0x55, 0x53, 0x59, 0x10, 0x01, 0x32, 0x96, 0x01, 0x0a, 0x06, 0x57,
+	0x6f, 0x72, 0x6b, 0x65, 0x72, 0x12, 0x18, 0x0a, 0x03, 0x4d, 0x61, 0x70, 0x12, 0x08, 0x2e, 0x4d,
+	0x61, 0x70, 0x49, 0x6e, 0x66, 0x6f, 0x1a, 0x07, 0x2e, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x12,
+	0x1e, 0x0a, 0x06, 0x52, 0x65, 0x64, 0x75, 0x63, 0x65, 0x12, 0x0b, 0x2e, 0x52, 0x65, 0x64, 0x75,
+	0x63, 0x65, 0x49, 0x6e, 0x66, 0x6f, 0x1a, 0x07, 0x2e, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x12,
+	0x1b, 0x0a, 0x0a, 0x47, 0x65, 0x74, 0x49, 0x4d, 0x44, 0x44, 0x61, 0x74, 0x61, 0x12, 0x07, 0x2e,
+	0x49, 0x4d, 0x44, 0x4c, 0x6f, 0x63, 0x1a, 0x04, 0x2e, 0x4b, 0x56, 0x73, 0x12, 0x15, 0x0a, 0x03,
+	0x45, 0x6e, 0x64, 0x12, 0x06, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x06, 0x2e, 0x45, 0x6d,
+	0x70, 0x74, 0x79, 0x12, 0x1e, 0x0a, 0x06, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x12, 0x06, 0x2e,
+	0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x0c, 0x2e, 0x57, 0x6f, 0x72, 0x6b, 0x65, 0x72, 0x53, 0x74,
+	0x61, 0x74, 0x65, 0x42, 0x08, 0x5a, 0x06, 0x2e, 0x2f, 0x3b, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -527,35 +628,41 @@ func file_rpc_worker_proto_rawDescGZIP() []byte {
 	return file_rpc_worker_proto_rawDescData
 }
 
-var file_rpc_worker_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_rpc_worker_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_rpc_worker_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_rpc_worker_proto_goTypes = []interface{}{
-	(*Empty)(nil),          // 0: Empty
-	(*Result)(nil),         // 1: Result
-	(*MapInfo)(nil),        // 2: MapInfo
-	(*MapFileInfo)(nil),    // 3: MapFileInfo
-	(*ReduceInfo)(nil),     // 4: ReduceInfo
-	(*ReduceFileInfo)(nil), // 5: ReduceFileInfo
-	(*IMDLoc)(nil),         // 6: IMDLoc
-	(*KVs)(nil),            // 7: KVs
-	(*KV)(nil),             // 8: KV
+	(WorkerState_State)(0), // 0: WorkerState.State
+	(*Empty)(nil),          // 1: Empty
+	(*Result)(nil),         // 2: Result
+	(*MapInfo)(nil),        // 3: MapInfo
+	(*MapFileInfo)(nil),    // 4: MapFileInfo
+	(*ReduceInfo)(nil),     // 5: ReduceInfo
+	(*ReduceFileInfo)(nil), // 6: ReduceFileInfo
+	(*IMDLoc)(nil),         // 7: IMDLoc
+	(*KVs)(nil),            // 8: KVs
+	(*KV)(nil),             // 9: KV
+	(*WorkerState)(nil),    // 10: WorkerState
 }
 var file_rpc_worker_proto_depIdxs = []int32{
-	3, // 0: MapInfo.files:type_name -> MapFileInfo
-	5, // 1: ReduceInfo.files:type_name -> ReduceFileInfo
-	8, // 2: KVs.kvs:type_name -> KV
-	2, // 3: Worker.Map:input_type -> MapInfo
-	4, // 4: Worker.Reduce:input_type -> ReduceInfo
-	6, // 5: Worker.GetIMDData:input_type -> IMDLoc
-	0, // 6: Worker.End:input_type -> Empty
-	1, // 7: Worker.Map:output_type -> Result
-	1, // 8: Worker.Reduce:output_type -> Result
-	7, // 9: Worker.GetIMDData:output_type -> KVs
-	0, // 10: Worker.End:output_type -> Empty
-	7, // [7:11] is the sub-list for method output_type
-	3, // [3:7] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4,  // 0: MapInfo.files:type_name -> MapFileInfo
+	6,  // 1: ReduceInfo.files:type_name -> ReduceFileInfo
+	9,  // 2: KVs.kvs:type_name -> KV
+	0,  // 3: WorkerState.state:type_name -> WorkerState.State
+	3,  // 4: Worker.Map:input_type -> MapInfo
+	5,  // 5: Worker.Reduce:input_type -> ReduceInfo
+	7,  // 6: Worker.GetIMDData:input_type -> IMDLoc
+	1,  // 7: Worker.End:input_type -> Empty
+	1,  // 8: Worker.Health:input_type -> Empty
+	2,  // 9: Worker.Map:output_type -> Result
+	2,  // 10: Worker.Reduce:output_type -> Result
+	8,  // 11: Worker.GetIMDData:output_type -> KVs
+	1,  // 12: Worker.End:output_type -> Empty
+	10, // 13: Worker.Health:output_type -> WorkerState
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_rpc_worker_proto_init() }
@@ -672,19 +779,32 @@ func file_rpc_worker_proto_init() {
 				return nil
 			}
 		}
+		file_rpc_worker_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*WorkerState); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_rpc_worker_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   9,
+			NumEnums:      1,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_rpc_worker_proto_goTypes,
 		DependencyIndexes: file_rpc_worker_proto_depIdxs,
+		EnumInfos:         file_rpc_worker_proto_enumTypes,
 		MessageInfos:      file_rpc_worker_proto_msgTypes,
 	}.Build()
 	File_rpc_worker_proto = out.File

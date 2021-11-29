@@ -24,6 +24,7 @@ type WorkerClient interface {
 	GetIMDData(ctx context.Context, in *IMDLoc, opts ...grpc.CallOption) (*KVs, error)
 	// rpc HealthCheck (IMDInfo) returns (UpdateResult);
 	End(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	Health(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*WorkerState, error)
 }
 
 type workerClient struct {
@@ -70,6 +71,15 @@ func (c *workerClient) End(ctx context.Context, in *Empty, opts ...grpc.CallOpti
 	return out, nil
 }
 
+func (c *workerClient) Health(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*WorkerState, error) {
+	out := new(WorkerState)
+	err := c.cc.Invoke(ctx, "/Worker/Health", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // WorkerServer is the server API for Worker service.
 // All implementations must embed UnimplementedWorkerServer
 // for forward compatibility
@@ -80,6 +90,7 @@ type WorkerServer interface {
 	GetIMDData(context.Context, *IMDLoc) (*KVs, error)
 	// rpc HealthCheck (IMDInfo) returns (UpdateResult);
 	End(context.Context, *Empty) (*Empty, error)
+	Health(context.Context, *Empty) (*WorkerState, error)
 	mustEmbedUnimplementedWorkerServer()
 }
 
@@ -98,6 +109,9 @@ func (UnimplementedWorkerServer) GetIMDData(context.Context, *IMDLoc) (*KVs, err
 }
 func (UnimplementedWorkerServer) End(context.Context, *Empty) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method End not implemented")
+}
+func (UnimplementedWorkerServer) Health(context.Context, *Empty) (*WorkerState, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
 }
 func (UnimplementedWorkerServer) mustEmbedUnimplementedWorkerServer() {}
 
@@ -184,6 +198,24 @@ func _Worker_End_Handler(srv interface{}, ctx context.Context, dec func(interfac
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Worker_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkerServer).Health(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Worker/Health",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkerServer).Health(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Worker_ServiceDesc is the grpc.ServiceDesc for Worker service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -206,6 +238,10 @@ var Worker_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "End",
 			Handler:    _Worker_End_Handler,
+		},
+		{
+			MethodName: "Health",
+			Handler:    _Worker_Health_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
