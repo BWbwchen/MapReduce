@@ -30,7 +30,7 @@ func (mt *MapTaskInfo) addFile(file string, from int, to int) {
 func newMapTask() MapTaskInfo {
 	return MapTaskInfo{
 		UUID:      uuid.New().String(),
-		TaskState: IDLE,
+		TaskState: TASK_IDLE,
 	}
 }
 

@@ -70,3 +70,22 @@ func End(workerIP string) bool {
 
 	return true
 }
+
+func Health(workerIP string) int {
+	conn, err := grpc.Dial(workerIP, grpc.WithInsecure())
+	if err != nil {
+		log.Panic(err)
+	}
+	defer conn.Close()
+	c := rpc.NewWorkerClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	r, err := c.Health(ctx, &rpc.Empty{})
+	if err != nil {
+		return int(WORKER_UNKNOWN)
+	}
+
+	return int(r.State)
+}

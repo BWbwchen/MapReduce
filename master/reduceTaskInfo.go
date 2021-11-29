@@ -19,7 +19,7 @@ type IMDInfo struct {
 func newReduceTask() ReduceTaskInfo {
 	return ReduceTaskInfo{
 		UUID:      uuid.New().String(),
-		TaskState: IDLE,
+		TaskState: TASK_IDLE,
 	}
 }
 

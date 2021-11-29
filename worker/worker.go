@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/BWbwchen/MapReduce/rpc"
 	"github.com/google/uuid"
@@ -25,6 +26,8 @@ type Worker struct {
 	Chan       MrContext
 	EndChan    chan bool
 	storeInRAM bool
+	State      rpc.WorkerState_State
+	mux        sync.Mutex
 	rpc.UnimplementedWorkerServer
 }
 
@@ -35,6 +38,7 @@ func newWorker(nReduce int, inRAM bool) rpc.WorkerServer {
 		Chan:       newMrContext(),
 		EndChan:    make(chan bool),
 		storeInRAM: inRAM,
+		State:      rpc.WorkerState_IDLE,
 	}
 }
 
@@ -42,6 +46,9 @@ func newWorker(nReduce int, inRAM bool) rpc.WorkerServer {
 
 func (wr *Worker) Map(ctx context.Context, in *rpc.MapInfo) (*rpc.Result, error) {
 	log.Info("[Worker] Start Map")
+
+	wr.setWorkerState(rpc.WorkerState_BUSY)
+
 	log.Trace("[Worker] Start Mapping")
 	done := make(chan int, 100)
 	for _, fInfo := range in.Files {
@@ -94,6 +101,7 @@ LOOP:
 	})
 	log.Trace("[Worker] Finish Tell Master the intermediate info")
 	log.Info("[Worker] Finish Map Task")
+	wr.setWorkerState(rpc.WorkerState_IDLE)
 
 	return &rpc.Result{Result: true}, nil
 }
@@ -179,6 +187,9 @@ func writeIMDToLocalFileParallel(taskId int, kvs []KV, uuid string, inRAM bool, 
 
 func (wr *Worker) Reduce(ctx context.Context, in *rpc.ReduceInfo) (*rpc.Result, error) {
 	log.Info("[Worker] Start Reduce")
+
+	wr.setWorkerState(rpc.WorkerState_BUSY)
+
 	log.Trace("[Worker] Get intermediate file")
 	var imdKVs []KV
 	for _, fInfo := range in.Files {
@@ -214,6 +225,7 @@ func (wr *Worker) Reduce(ctx context.Context, in *rpc.ReduceInfo) (*rpc.Result, 
 	}
 	log.Trace("[Worker] End Reducing")
 	log.Info("[Worker] End Reduce")
+	wr.setWorkerState(rpc.WorkerState_IDLE)
 
 	return &rpc.Result{Result: true}, nil
 }
@@ -256,4 +268,20 @@ func (wr *Worker) End(ctx context.Context, in *rpc.Empty) (*rpc.Empty, error) {
 
 func (wr *Worker) setID(id int) {
 	wr.ID = id
+}
+
+func (wr *Worker) Health(ctx context.Context, in *rpc.Empty) (*rpc.WorkerState, error) {
+	log.Trace("[Worker] Health Check")
+
+	wr.mux.Lock()
+	state := wr.State
+	wr.mux.Unlock()
+
+	return &rpc.WorkerState{State: state}, nil
+}
+
+func (wr *Worker) setWorkerState(state rpc.WorkerState_State) {
+	wr.mux.Lock()
+	wr.State = state
+	wr.mux.Unlock()
 }
