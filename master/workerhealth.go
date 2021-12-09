@@ -1,12 +1,14 @@
 package master
 
 import (
-	log "github.com/sirupsen/logrus"
+	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func (ms *Master) periodicHealthCheck() {
-	ticker := time.NewTicker(5 * time.Second)
+func (ms *Master) PeriodicHealthCheck() {
+	ticker := time.NewTicker(1 * time.Second)
 
 	for {
 		<-ticker.C
@@ -16,15 +18,25 @@ func (ms *Master) periodicHealthCheck() {
 }
 
 func (ms *Master) checkWorkersHealth() {
+	var wg sync.WaitGroup
 	for _, worker := range ms.Workers {
-		worker.WorkerState = Health(worker.IP)
-		state := ""
-		switch worker.WorkerState {
-		case WORKER_IDLE:
-			state = "Worker IDLE"
-		case WORKER_BUSY:
-			state = "Worker Busy"
-		}
-		log.Info("[Master] Worker state is :", state)
+		wg.Add(1)
+		go func(w WorkerInfo) {
+			checkHealth(w)
+			wg.Done()
+		}(worker)
 	}
+	wg.Wait()
+}
+
+func checkHealth(worker WorkerInfo) {
+	worker.WorkerState = Health(worker.IP)
+	state := ""
+	switch worker.WorkerState {
+	case WORKER_IDLE:
+		state = "Worker IDLE"
+	case WORKER_BUSY:
+		state = "Worker Busy"
+	}
+	log.Info("[Master] Worker state is :", state)
 }

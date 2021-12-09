@@ -39,7 +39,7 @@ func StartMaster(files []string, nWorker int, nReduce int, addr string) {
 
 	// Check the worker is enough
 	ms.(*Master).waitForEnoughWorker()
-	go ms.(*Master).periodicHealthCheck()
+	go ms.(*Master).PeriodicHealthCheck()
 
 	// Split input file (100,000 lines per chunk)
 	ms.(*Master).distributeWork(files)
