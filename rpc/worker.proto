@@ -5,7 +5,7 @@ service Worker {
     rpc Map (MapInfo) returns (Result);
     rpc Reduce (ReduceInfo) returns (Result);
     // IMD = InterMeDiate
-    rpc GetIMDData (IMDLoc) returns (KVs);
+    rpc GetIMDData (IMDLoc) returns (JSONKVs);
     /* rpc HealthCheck (IMDInfo) returns (UpdateResult); */
     rpc End(Empty) returns(Empty);
 
@@ -44,8 +44,8 @@ message IMDLoc {
     string filename = 1;
 }
 
-message KVs {
-    repeated KV kvs = 1;
+message JSONKVs {
+    string kvs = 1;
 }
 
 message KV {

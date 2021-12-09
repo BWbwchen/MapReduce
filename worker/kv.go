@@ -1,8 +1,8 @@
 package worker
 
 type KV struct {
-	Key   string
-	Value string
+	Key   string `json:"k"`
+	Value string `json:"v"`
 }
 
 func newKV(k string, v string) KV {

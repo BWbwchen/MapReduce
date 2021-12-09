@@ -21,7 +21,7 @@ type WorkerClient interface {
 	Map(ctx context.Context, in *MapInfo, opts ...grpc.CallOption) (*Result, error)
 	Reduce(ctx context.Context, in *ReduceInfo, opts ...grpc.CallOption) (*Result, error)
 	// IMD = InterMeDiate
-	GetIMDData(ctx context.Context, in *IMDLoc, opts ...grpc.CallOption) (*KVs, error)
+	GetIMDData(ctx context.Context, in *IMDLoc, opts ...grpc.CallOption) (*JSONKVs, error)
 	// rpc HealthCheck (IMDInfo) returns (UpdateResult);
 	End(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	Health(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*WorkerState, error)
@@ -53,8 +53,8 @@ func (c *workerClient) Reduce(ctx context.Context, in *ReduceInfo, opts ...grpc.
 	return out, nil
 }
 
-func (c *workerClient) GetIMDData(ctx context.Context, in *IMDLoc, opts ...grpc.CallOption) (*KVs, error) {
-	out := new(KVs)
+func (c *workerClient) GetIMDData(ctx context.Context, in *IMDLoc, opts ...grpc.CallOption) (*JSONKVs, error) {
+	out := new(JSONKVs)
 	err := c.cc.Invoke(ctx, "/Worker/GetIMDData", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ type WorkerServer interface {
 	Map(context.Context, *MapInfo) (*Result, error)
 	Reduce(context.Context, *ReduceInfo) (*Result, error)
 	// IMD = InterMeDiate
-	GetIMDData(context.Context, *IMDLoc) (*KVs, error)
+	GetIMDData(context.Context, *IMDLoc) (*JSONKVs, error)
 	// rpc HealthCheck (IMDInfo) returns (UpdateResult);
 	End(context.Context, *Empty) (*Empty, error)
 	Health(context.Context, *Empty) (*WorkerState, error)
@@ -104,7 +104,7 @@ func (UnimplementedWorkerServer) Map(context.Context, *MapInfo) (*Result, error)
 func (UnimplementedWorkerServer) Reduce(context.Context, *ReduceInfo) (*Result, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Reduce not implemented")
 }
-func (UnimplementedWorkerServer) GetIMDData(context.Context, *IMDLoc) (*KVs, error) {
+func (UnimplementedWorkerServer) GetIMDData(context.Context, *IMDLoc) (*JSONKVs, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetIMDData not implemented")
 }
 func (UnimplementedWorkerServer) End(context.Context, *Empty) (*Empty, error) {

@@ -3,10 +3,10 @@ package worker
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/BWbwchen/MapReduce/rpc"
@@ -163,10 +163,8 @@ LOOP:
 }
 
 func writeIMDToLocalFileParallel(taskId int, kvs []KV, uuid string, inRAM bool, output chan string, finish chan bool) {
-	content := ""
-	for _, kv := range kvs {
-		content += fmt.Sprintf("%v %v\n", kv.Key, kv.Value)
-	}
+	content_byte, _ := json.Marshal(kvs)
+	content := string(content_byte)
 
 	var fname string
 	if inRAM {
@@ -230,34 +228,22 @@ func (wr *Worker) Reduce(ctx context.Context, in *rpc.ReduceInfo) (*rpc.Result, 
 	return &rpc.Result{Result: true}, nil
 }
 
-func (wr *Worker) GetIMDData(ctx context.Context, in *rpc.IMDLoc) (*rpc.KVs, error) {
+func (wr *Worker) GetIMDData(ctx context.Context, in *rpc.IMDLoc) (*rpc.JSONKVs, error) {
 	log.Info("[Worker] RPC Get intermediate file")
-	return &rpc.KVs{
+	return &rpc.JSONKVs{
 		Kvs: generateIMDKV(in.Filename),
 	}, nil
 }
 
-func generateIMDKV(file string) []*rpc.KV {
-	f, err := os.Open(file)
+func generateIMDKV(file string) string {
+	b, err := os.ReadFile(file)
 	if err != nil {
 		panic(err)
 	}
 
-	defer f.Close()
+	content := string(b)
 
-	scanner := bufio.NewScanner(f)
-
-	var Kvs []*rpc.KV
-
-	for scanner.Scan() {
-		var kv rpc.KV
-		line := strings.Split(scanner.Text(), " ")
-		kv.Key = line[0]
-		kv.Value = line[1]
-		Kvs = append(Kvs, &kv)
-	}
-
-	return Kvs
+	return content
 }
 
 func (wr *Worker) End(ctx context.Context, in *rpc.Empty) (*rpc.Empty, error) {

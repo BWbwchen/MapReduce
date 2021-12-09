@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/BWbwchen/MapReduce/rpc"
@@ -74,10 +75,12 @@ func GetIMDData(ip string, filename string) []KV {
 		Filename: filename,
 	})
 
-	var kvs []KV
-	for _, kv := range r.Kvs {
-		kvs = append(kvs, newKV(kv.Key, kv.Value))
+	var ret []KV
+
+	err = json.Unmarshal([]byte(r.Kvs), &ret)
+	if err != nil {
+		panic(err)
 	}
 
-	return kvs
+	return ret
 }
