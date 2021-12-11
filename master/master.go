@@ -39,9 +39,8 @@ func NewMaster(nWorker int, nReduce int) rpc.MasterServer {
 
 func (ms *Master) WorkerRegister(ctx context.Context, in *rpc.WorkerInfo) (*rpc.RegisterResult, error) {
 	var num int
-	nw := newWorker(in.Uuid, in.Ip)
 	ms.mux.Lock()
-	ms.Workers = append(ms.Workers, nw)
+	ms.Workers = append(ms.Workers, newWorker(in.Uuid, in.Ip))
 	ms.numWorkers++
 
 	num = ms.numWorkers
@@ -67,9 +66,9 @@ func (ms *Master) UpdateIMDInfo(ctx context.Context, in *rpc.IMDInfo) (*rpc.Upda
 func (ms *Master) serviceDiscovey(uuid string) string {
 	var ip string
 
-	for _, wi := range ms.Workers {
-		if wi.UUID == uuid {
-			ip = wi.getIP()
+	for i := range ms.Workers {
+		if ms.Workers[i].UUID == uuid {
+			ip = ms.Workers[i].getIP()
 		}
 	}
 
@@ -302,8 +301,8 @@ LOOP:
 
 func (ms *Master) endWorkers() {
 	log.Trace("[Master] End Workers Start")
-	for _, worker := range ms.Workers {
-		End(worker.IP)
+	for i := range ms.Workers {
+		End(ms.Workers[i].IP)
 	}
 	log.Trace("[Master] End Workers done")
 }
