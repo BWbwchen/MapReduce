@@ -46,7 +46,6 @@ func StartMaster(files []string, nWorker int, nReduce int, addr string) {
 
 	ms.(*Master).distributeMapTask()
 
-	// TODO: uncomment
 	ms.(*Master).distributeReduceTask()
 
 	ms.(*Master).endWorkers()

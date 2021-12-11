@@ -1,11 +1,13 @@
 package master
 
 import (
+	// log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
+
+// If there are 3 continuous unknow, we thought that that worker is dead.
+// stop that work and make other deal with that.
 
 func (ms *Master) PeriodicHealthCheck() {
 	ticker := time.NewTicker(1 * time.Second)
@@ -20,6 +22,7 @@ func (ms *Master) PeriodicHealthCheck() {
 func (ms *Master) checkWorkersHealth() {
 	var wg sync.WaitGroup
 	for _, worker := range ms.Workers {
+		// worker.WorkerState = Health(worker.IP)
 		wg.Add(1)
 		go func(w WorkerInfo) {
 			checkHealth(w)
@@ -30,13 +33,16 @@ func (ms *Master) checkWorkersHealth() {
 }
 
 func checkHealth(worker WorkerInfo) {
-	worker.WorkerState = Health(worker.IP)
-	state := ""
-	switch worker.WorkerState {
-	case WORKER_IDLE:
-		state = "Worker IDLE"
-	case WORKER_BUSY:
-		state = "Worker Busy"
-	}
-	log.Info("[Master] Worker state is :", state)
+	// worker.WorkerState = Health(worker.IP)
+	// state := ""
+	// switch worker.WorkerState {
+	// case WORKER_IDLE:
+	// 	state = "Worker IDLE"
+	// case WORKER_BUSY:
+	// 	state = "Worker Busy"
+	// case WORKER_UNKNOWN:
+	// 	state = "Worker Dead"
+	// }
+
+	// log.Info("[Master] Worker state is :", state)
 }

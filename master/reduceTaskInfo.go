@@ -43,3 +43,7 @@ func (mt *ReduceTaskInfo) toRPC() *rpc.ReduceInfo {
 
 	return ret
 }
+
+func (mt *ReduceTaskInfo) SetState(state int) {
+	mt.TaskState = state
+}

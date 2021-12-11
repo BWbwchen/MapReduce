@@ -19,6 +19,7 @@ type Master struct {
 	totalWorkers int
 	numReducer   int
 	enoughWorker chan bool
+	crashChan    chan string
 	mux          sync.Mutex
 	rpc.UnimplementedMasterServer
 }
@@ -30,6 +31,7 @@ func NewMaster(nWorker int, nReduce int) rpc.MasterServer {
 		totalWorkers: nWorker,
 		numReducer:   nReduce,
 		enoughWorker: make(chan bool, 1),
+		crashChan:    make(chan string, 100),
 	}
 }
 
@@ -95,7 +97,7 @@ func (ms *Master) getWorkerNum() (int, int) {
 
 func (ms *Master) distributeWork(files []string) {
 	log.Trace("[Master] Start distribute workload")
-	_, numWorkers := ms.availableWorkers()
+	numWorkers := ms.totalWorkers
 	// Initialize MapTasks
 	ms.MapTasks = newMapTasks(numWorkers)
 
@@ -119,11 +121,35 @@ func (ms *Master) distributeWork(files []string) {
 	log.Trace("[Master] End distribute workload")
 }
 
-func (ms *Master) availableWorkers() ([]WorkerInfo, int) {
-	ms.mux.Lock()
-	retInfo := ms.Workers
-	retWorkers := ms.numWorkers
-	ms.mux.Unlock()
+func (ms *Master) availableWorkers(num int) ([]*WorkerInfo, int) {
+	log.Info("[Master] Finding available workers to execute ", num, "/", len(ms.Workers))
+	var retInfo []*WorkerInfo
+	total := 0
+	broken := 0
+
+LOOP:
+	for {
+		// ms.mux.Lock()
+		broken = 0
+		for i := range ms.Workers {
+			if total >= num {
+				break LOOP
+			}
+			if ms.Workers[i].Health() {
+				retInfo = append(retInfo, &ms.Workers[i])
+				ms.Workers[i].SetState(WORKER_BUSY)
+				total += 1
+			} else if ms.Workers[i].Broken() {
+				broken += 1
+			}
+		}
+		if broken == len(ms.Workers) {
+			log.Panic("No enough worker!", total, num)
+		}
+		// ms.mux.Unlock()
+	}
+
+	retWorkers := len(retInfo)
 	return retInfo, retWorkers
 }
 
@@ -146,34 +172,131 @@ func lineNums(file string) int {
 
 func (ms *Master) distributeMapTask() {
 	log.Trace("[Master] Start Map task")
-	var wg sync.WaitGroup
+
+	taskStates := sync.Map{}
+
+	finish := make(chan string, 100)
+	// crashChan := make(chan MapTaskInfo, 100)
 	workerID := 0
-	workers, nWorkers := ms.availableWorkers()
+	workers, nWorkers := ms.availableWorkers(ms.totalWorkers)
 	for _, mapTask := range ms.MapTasks {
-		wg.Add(1)
+		mapTask.setState(TASK_INPROGRESS)
 		go func(task MapTaskInfo, id int) {
-			Map(workers[id].IP, task.toRPC())
-			wg.Done()
+			taskStates.Store(workers[id].UUID, task)
+			done := Map(workers[id].IP, task.toRPC())
+			if !done {
+				// task.setState(TASK_IDLE)
+				workers[id].SetState(WORKER_UNKNOWN)
+				ms.crashChan <- workers[id].UUID
+				// crashChan <- task
+			} else {
+				// task.setState(TASK_COMPLETED)
+				workers[id].SetState(WORKER_IDLE)
+				finish <- workers[id].UUID
+			}
 		}(mapTask, workerID)
 		workerID = (workerID + 1) % nWorkers
 	}
-	wg.Wait()
+
+	count := 0
+LOOP:
+	for {
+		select {
+		case <-finish:
+			count += 1
+			if count == len(ms.MapTasks) {
+				close(finish)
+				break LOOP
+			}
+		case crashUUID := <-ms.crashChan:
+			// ms.waitForIDLEWorkers()
+			workers, _ := ms.availableWorkers(1)
+			log.Info("[Master] Re-execute Map Task from ", crashUUID, " To ", workers[0].UUID)
+			if crashUUID == workers[0].UUID {
+				log.Panic("Self loop")
+			}
+			reExecuteTask, ok := taskStates.Load(crashUUID)
+			if !ok {
+				log.Panic("Load task states from crashUUID fail")
+			}
+			go func(task MapTaskInfo, id int) {
+				// taskStates.Delete(crashUUID)
+				taskStates.Store(workers[id].UUID, task)
+				done := Map(workers[id].IP, task.toRPC())
+				if !done {
+					task.setState(TASK_IDLE)
+					workers[id].SetState(WORKER_UNKNOWN)
+					ms.crashChan <- workers[id].UUID
+				} else {
+					task.setState(TASK_COMPLETED)
+					workers[id].SetState(WORKER_IDLE)
+					finish <- workers[id].UUID
+				}
+			}(reExecuteTask.(MapTaskInfo), 0)
+		}
+	}
 	log.Trace("[Master] End Map task")
 }
 
 func (ms *Master) distributeReduceTask() {
 	log.Trace("[Master] Start Reduce task")
-	var wg sync.WaitGroup
+
+	taskStates := sync.Map{}
+
+	finish := make(chan string, 100)
 	workerID := 0
+	workers, nWorkers := ms.availableWorkers(ms.numReducer)
 	for _, reduceTask := range ms.ReduceTasks {
-		wg.Add(1)
+		reduceTask.SetState(TASK_INPROGRESS)
 		go func(task ReduceTaskInfo, id int) {
-			Reduce(ms.Workers[id].IP, task.toRPC())
-			wg.Done()
+			taskStates.Store(workers[id].UUID, task)
+			workers[id].SetState(WORKER_BUSY)
+			done := Reduce(workers[id].IP, task.toRPC())
+			if !done {
+				task.SetState(TASK_IDLE)
+				workers[id].SetState(WORKER_UNKNOWN)
+				ms.crashChan <- workers[id].UUID
+			} else {
+				task.SetState(TASK_COMPLETED)
+				workers[id].SetState(WORKER_IDLE)
+				finish <- workers[id].UUID
+			}
 		}(reduceTask, workerID)
-		workerID = (workerID + 1) % ms.numReducer
+		workerID = (workerID + 1) % nWorkers
 	}
-	wg.Wait()
+
+	count := 0
+LOOP:
+	for {
+		select {
+		case <-finish:
+			count += 1
+			if count == len(ms.ReduceTasks) {
+				close(finish)
+				break LOOP
+			}
+		case crashUUID := <-ms.crashChan:
+			workers, _ = ms.availableWorkers(1)
+
+			log.Info("[Master] Re-execute Map Task from ", crashUUID, "To ", workers[0].UUID)
+			reExecuteTask, _ := taskStates.Load(crashUUID)
+			go func(task ReduceTaskInfo, id int) {
+				taskStates.Delete(crashUUID)
+				taskStates.Store(workers[id].UUID, task)
+				done := Reduce(workers[id].IP, task.toRPC())
+				if !done {
+					task.SetState(TASK_IDLE)
+					workers[id].SetState(WORKER_UNKNOWN)
+					ms.crashChan <- workers[id].UUID
+				} else {
+					task.SetState(TASK_COMPLETED)
+					workers[id].SetState(WORKER_IDLE)
+					finish <- workers[id].UUID
+				}
+			}(reExecuteTask.(ReduceTaskInfo), 0)
+		}
+	}
+
 	log.Trace("[Master] End Reduce task")
 }
 

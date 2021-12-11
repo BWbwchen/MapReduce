@@ -55,3 +55,7 @@ func (mt *MapTaskInfo) toRPC() *rpc.MapInfo {
 
 	return ret
 }
+
+func (mt *MapTaskInfo) setState(state int) {
+	mt.TaskState = state
+}

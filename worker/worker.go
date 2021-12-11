@@ -51,10 +51,11 @@ func (wr *Worker) Map(ctx context.Context, in *rpc.MapInfo) (*rpc.Result, error)
 
 	log.Trace("[Worker] Start Mapping")
 	done := make(chan int, 100)
+	mapChan := newMrContext()
 	for _, fInfo := range in.Files {
 		content := partialContent(fInfo)
 		go func(f0 *rpc.MapFileInfo, c0 string) {
-			wr.Mapf(f0.FileName, c0, wr.Chan)
+			wr.Mapf(f0.FileName, c0, mapChan)
 			done <- 1
 		}(fInfo, content)
 	}
@@ -71,7 +72,7 @@ func (wr *Worker) Map(ctx context.Context, in *rpc.MapInfo) (*rpc.Result, error)
 LOOP:
 	for {
 		select {
-		case mapKV, haveKV := <-wr.Chan.MapChan:
+		case mapKV, haveKV := <-mapChan.Chan:
 			if haveKV {
 				imdKV[i] = append(imdKV[i], mapKV)
 				i = (i + 1) % wr.nReduce
@@ -82,7 +83,7 @@ LOOP:
 		case <-done:
 			count++
 			if count == len(in.Files) {
-				close(wr.Chan.MapChan)
+				close(mapChan.Chan)
 			}
 		}
 
@@ -203,6 +204,7 @@ func (wr *Worker) Reduce(ctx context.Context, in *rpc.ReduceInfo) (*rpc.Result, 
 
 	log.Trace("[Worker] Start Reducing")
 	// Reduce all the intermediate KV
+	reduceChan := newMrContext()
 	i := 0
 	for i < len(imdKVs) {
 		j := i + 1
@@ -213,9 +215,9 @@ func (wr *Worker) Reduce(ctx context.Context, in *rpc.ReduceInfo) (*rpc.Result, 
 		for k := i; k < j; k++ {
 			values = append(values, imdKVs[k].Value)
 		}
-		wr.Reducef(imdKVs[i].Key, values, wr.Chan)
+		wr.Reducef(imdKVs[i].Key, values, reduceChan)
 
-		output := <-wr.Chan.ReduceChan
+		output := <-reduceChan.Chan
 
 		fmt.Fprintf(ofile, "%v %v\n", output.Key, output.Value)
 
