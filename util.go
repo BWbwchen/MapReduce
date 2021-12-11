@@ -21,8 +21,9 @@ func ParseArg() ([]string, string, int, int, bool) {
 	var port int64
 	var rootCmd = &cobra.Command{
 		Use:   "mapreduce",
-		Short: "mapreduce is a easy-to-use parallel framework",
-		Long:  `mapreduce is a easy-to-use parallel framework`,
+		Short: "MapReduce is an easy-to-use parallel framework by Bo-Wei Chen(BWbwchen)",
+		Long: `MapReudce is an easy-to-use Map Reduce Go parallel-computing framework inspired by 2021 6.824 lab1.
+It supports multiple workers threads on a single machine and multiple processes on a single machine right now.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			tempFiles := []string{}
 
@@ -53,7 +54,7 @@ func ParseArg() ([]string, string, int, int, bool) {
 	rootCmd.PersistentFlags().StringVarP(&plugin, "plugin", "p", "", "Plugin .so file")
 	rootCmd.MarkPersistentFlagRequired("plugin")
 	rootCmd.PersistentFlags().Int64VarP(&nReducer, "reduce", "r", 1, "Number of Reducers")
-	rootCmd.PersistentFlags().Int64VarP(&nWorker, "worker", "w", 4, "Number of Workers")
+	rootCmd.PersistentFlags().Int64VarP(&nWorker, "worker", "w", 4, "Number of Workers(for master node)\nID of worker(for worker node)")
 	rootCmd.PersistentFlags().Int64Var(&port, "port", 10000, "Port number")
 	rootCmd.PersistentFlags().BoolVarP(&inRAM, "inRAM", "m", true, "Whether write the intermediate file in RAM")
 
