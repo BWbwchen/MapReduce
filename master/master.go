@@ -169,12 +169,41 @@ func lineNums(file string) int {
 	return num
 }
 
+func (ms *Master) orDone(finish, crashChan <-chan string) <-chan string {
+	count := 0
+	valStream := make(chan string)
+	go func() {
+		defer close(valStream)
+		for {
+			select {
+			case <-finish:
+				count += 1
+				if count == len(ms.MapTasks) {
+					return
+				}
+			case crashUUID, ok := <-crashChan:
+				if !ok {
+					if count != len(ms.MapTasks) {
+						log.Panic("faild to distribute all MapTask")
+						return
+					}
+				}
+
+				valStream <- crashUUID
+
+			}
+		}
+	}()
+	return valStream
+}
+
 func (ms *Master) distributeMapTask() {
 	log.Trace("[Master] Start Map task")
 
 	taskStates := sync.Map{}
 
 	finish := make(chan string, 100)
+	defer close(finish)
 	// crashChan := make(chan MapTaskInfo, 100)
 	workerID := 0
 	workers, nWorkers := ms.availableWorkers(ms.totalWorkers)
@@ -197,43 +226,32 @@ func (ms *Master) distributeMapTask() {
 		workerID = (workerID + 1) % nWorkers
 	}
 
-	count := 0
-LOOP:
-	for {
-		select {
-		case <-finish:
-			count += 1
-			if count == len(ms.MapTasks) {
-				close(finish)
-				break LOOP
-			}
-		case crashUUID := <-ms.crashChan:
-			// ms.waitForIDLEWorkers()
-			workers, _ := ms.availableWorkers(1)
-			log.Info("[Master] Re-execute Map Task from ", crashUUID, " To ", workers[0].UUID)
-			if crashUUID == workers[0].UUID {
-				log.Panic("Self loop")
-			}
-			reExecuteTask, ok := taskStates.Load(crashUUID)
-			if !ok {
-				log.Panic("Load task states from crashUUID fail")
-			}
-			go func(task MapTaskInfo, id int) {
-				// taskStates.Delete(crashUUID)
-				taskStates.Store(workers[id].UUID, task)
-				done := Map(workers[id].IP, task.toRPC())
-				if !done {
-					task.setState(TASK_IDLE)
-					workers[id].SetState(WORKER_UNKNOWN)
-					ms.crashChan <- workers[id].UUID
-				} else {
-					task.setState(TASK_COMPLETED)
-					workers[id].SetState(WORKER_IDLE)
-					finish <- workers[id].UUID
-				}
-			}(reExecuteTask.(MapTaskInfo), 0)
+	for crashUUID := range ms.orDone(finish, ms.crashChan) {
+		workers, _ := ms.availableWorkers(1)
+		log.Info("[Master] Re-execute Map Task from ", crashUUID, " To ", workers[0].UUID)
+		if crashUUID == workers[0].UUID {
+			log.Panic("Self loop")
 		}
+		reExecuteTask, ok := taskStates.Load(crashUUID)
+		if !ok {
+			log.Panic("Load task states from crashUUID fail")
+		}
+		go func(task MapTaskInfo, id int) {
+			// taskStates.Delete(crashUUID)
+			taskStates.Store(workers[id].UUID, task)
+			done := Map(workers[id].IP, task.toRPC())
+			if !done {
+				task.setState(TASK_IDLE)
+				workers[id].SetState(WORKER_UNKNOWN)
+				ms.crashChan <- workers[id].UUID
+			} else {
+				task.setState(TASK_COMPLETED)
+				workers[id].SetState(WORKER_IDLE)
+				finish <- workers[id].UUID
+			}
+		}(reExecuteTask.(MapTaskInfo), 0)
 	}
+
 	log.Trace("[Master] End Map task")
 }
 
@@ -243,6 +261,7 @@ func (ms *Master) distributeReduceTask() {
 	taskStates := sync.Map{}
 
 	finish := make(chan string, 100)
+	defer close(finish)
 	workerID := 0
 	workers, nWorkers := ms.availableWorkers(ms.numReducer)
 	for _, reduceTask := range ms.ReduceTasks {
@@ -264,36 +283,25 @@ func (ms *Master) distributeReduceTask() {
 		workerID = (workerID + 1) % nWorkers
 	}
 
-	count := 0
-LOOP:
-	for {
-		select {
-		case <-finish:
-			count += 1
-			if count == len(ms.ReduceTasks) {
-				close(finish)
-				break LOOP
-			}
-		case crashUUID := <-ms.crashChan:
-			workers, _ = ms.availableWorkers(1)
+	for crashUUID := range ms.orDone(finish, ms.crashChan) {
+		workers, _ = ms.availableWorkers(1)
 
-			log.Info("[Master] Re-execute Map Task from ", crashUUID, "To ", workers[0].UUID)
-			reExecuteTask, _ := taskStates.Load(crashUUID)
-			go func(task ReduceTaskInfo, id int) {
-				taskStates.Delete(crashUUID)
-				taskStates.Store(workers[id].UUID, task)
-				done := Reduce(workers[id].IP, task.toRPC())
-				if !done {
-					task.SetState(TASK_IDLE)
-					workers[id].SetState(WORKER_UNKNOWN)
-					ms.crashChan <- workers[id].UUID
-				} else {
-					task.SetState(TASK_COMPLETED)
-					workers[id].SetState(WORKER_IDLE)
-					finish <- workers[id].UUID
-				}
-			}(reExecuteTask.(ReduceTaskInfo), 0)
-		}
+		log.Info("[Master] Re-execute Map Task from ", crashUUID, "To ", workers[0].UUID)
+		reExecuteTask, _ := taskStates.Load(crashUUID)
+		go func(task ReduceTaskInfo, id int) {
+			taskStates.Delete(crashUUID)
+			taskStates.Store(workers[id].UUID, task)
+			done := Reduce(workers[id].IP, task.toRPC())
+			if !done {
+				task.SetState(TASK_IDLE)
+				workers[id].SetState(WORKER_UNKNOWN)
+				ms.crashChan <- workers[id].UUID
+			} else {
+				task.SetState(TASK_COMPLETED)
+				workers[id].SetState(WORKER_IDLE)
+				finish <- workers[id].UUID
+			}
+		}(reExecuteTask.(ReduceTaskInfo), 0)
 	}
 
 	log.Trace("[Master] End Reduce task")
