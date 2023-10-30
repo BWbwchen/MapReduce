@@ -9,14 +9,34 @@ import (
 	"google.golang.org/grpc"
 )
 
-func Map(workerIP string, m *rpc.MapInfo) bool {
+type rpcClient interface {
+	connect(workerIP string) (*grpc.ClientConn, rpc.WorkerClient)
+	Map(workerIP string, m *rpc.MapInfo) bool
+	Reduce(workerIP string, m *rpc.ReduceInfo) bool
+	End(workerIP string) bool
+	Health(workerIP string) int
+}
+
+type workerClient struct{}
+
+func (client *workerClient) connect(workerIP string) (*grpc.ClientConn, rpc.WorkerClient) {
 	conn, err := grpc.Dial(workerIP, grpc.WithInsecure())
 	if err != nil {
 		log.Warn(err)
+		return nil, nil
+	}
+
+	c := rpc.NewWorkerClient(conn)
+
+	return conn, c
+}
+
+func (client *workerClient) Map(workerIP string, m *rpc.MapInfo) bool {
+	conn, c := client.connect(workerIP)
+	if conn == nil {
 		return false
 	}
 	defer conn.Close()
-	c := rpc.NewWorkerClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -29,14 +49,12 @@ func Map(workerIP string, m *rpc.MapInfo) bool {
 	return r.Result
 }
 
-func Reduce(workerIP string, m *rpc.ReduceInfo) bool {
-	conn, err := grpc.Dial(workerIP, grpc.WithInsecure())
-	if err != nil {
-		log.Warn(err)
+func (client *workerClient) Reduce(workerIP string, m *rpc.ReduceInfo) bool {
+	conn, c := client.connect(workerIP)
+	if conn == nil {
 		return false
 	}
 	defer conn.Close()
-	c := rpc.NewWorkerClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -49,14 +67,12 @@ func Reduce(workerIP string, m *rpc.ReduceInfo) bool {
 	return r.Result
 }
 
-func End(workerIP string) bool {
-	conn, err := grpc.Dial(workerIP, grpc.WithInsecure())
-	if err != nil {
-		log.Warn(err)
+func (client *workerClient) End(workerIP string) bool {
+	conn, c := client.connect(workerIP)
+	if conn == nil {
 		return false
 	}
 	defer conn.Close()
-	c := rpc.NewWorkerClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -66,14 +82,12 @@ func End(workerIP string) bool {
 	return true
 }
 
-func Health(workerIP string) int {
-	conn, err := grpc.Dial(workerIP, grpc.WithInsecure())
-	if err != nil {
-		log.Warn(err)
+func (client *workerClient) Health(workerIP string) int {
+	conn, c := client.connect(workerIP)
+	if conn == nil {
 		return int(WORKER_UNKNOWN)
 	}
 	defer conn.Close()
-	c := rpc.NewWorkerClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
 	defer cancel()

@@ -21,15 +21,18 @@ type Master struct {
 	enoughWorker chan bool
 	crashChan    chan string
 	mux          sync.Mutex
+	client       rpcClient
 	rpc.UnimplementedMasterServer
 }
 
 func NewMaster(nWorker int, nReduce int) rpc.MasterServer {
+
 	return &Master{
 		ReduceTasks:  newReduceTasks(nReduce),
 		numWorkers:   0,
 		totalWorkers: nWorker,
 		numReducer:   nReduce,
+		client:       &workerClient{},
 		enoughWorker: make(chan bool, 1),
 		crashChan:    make(chan string, 100),
 	}
@@ -41,6 +44,7 @@ func (ms *Master) WorkerRegister(ctx context.Context, in *rpc.WorkerInfo) (*rpc.
 	var num int
 	ms.mux.Lock()
 	ms.Workers = append(ms.Workers, newWorker(in.Uuid, in.Ip))
+	fmt.Printf("ms.Workers: %v\n", ms.Workers)
 	ms.numWorkers++
 
 	num = ms.numWorkers
@@ -211,7 +215,7 @@ func (ms *Master) distributeMapTask() {
 		mapTask.setState(TASK_INPROGRESS)
 		go func(task MapTaskInfo, id int) {
 			taskStates.Store(workers[id].UUID, task)
-			done := Map(workers[id].IP, task.toRPC())
+			done := ms.client.Map(workers[id].IP, task.toRPC())
 			if !done {
 				// task.setState(TASK_IDLE)
 				workers[id].SetState(WORKER_UNKNOWN)
@@ -239,7 +243,7 @@ func (ms *Master) distributeMapTask() {
 		go func(task MapTaskInfo, id int) {
 			// taskStates.Delete(crashUUID)
 			taskStates.Store(workers[id].UUID, task)
-			done := Map(workers[id].IP, task.toRPC())
+			done := ms.client.Map(workers[id].IP, task.toRPC())
 			if !done {
 				task.setState(TASK_IDLE)
 				workers[id].SetState(WORKER_UNKNOWN)
@@ -269,7 +273,7 @@ func (ms *Master) distributeReduceTask() {
 		go func(task ReduceTaskInfo, id int) {
 			taskStates.Store(workers[id].UUID, task)
 			workers[id].SetState(WORKER_BUSY)
-			done := Reduce(workers[id].IP, task.toRPC())
+			done := ms.client.Reduce(workers[id].IP, task.toRPC())
 			if !done {
 				task.SetState(TASK_IDLE)
 				workers[id].SetState(WORKER_UNKNOWN)
@@ -291,7 +295,7 @@ func (ms *Master) distributeReduceTask() {
 		go func(task ReduceTaskInfo, id int) {
 			taskStates.Delete(crashUUID)
 			taskStates.Store(workers[id].UUID, task)
-			done := Reduce(workers[id].IP, task.toRPC())
+			done := ms.client.Reduce(workers[id].IP, task.toRPC())
 			if !done {
 				task.SetState(TASK_IDLE)
 				workers[id].SetState(WORKER_UNKNOWN)
@@ -310,7 +314,7 @@ func (ms *Master) distributeReduceTask() {
 func (ms *Master) endWorkers() {
 	log.Trace("[Master] End Workers Start")
 	for i := range ms.Workers {
-		End(ms.Workers[i].IP)
+		ms.client.End(ms.Workers[i].IP)
 	}
 	log.Trace("[Master] End Workers done")
 }
