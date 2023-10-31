@@ -21,7 +21,7 @@ type Master struct {
 	enoughWorker chan bool
 	crashChan    chan string
 	mux          sync.Mutex
-	client       rpcClient
+	client       RpcClient
 	rpc.UnimplementedMasterServer
 }
 

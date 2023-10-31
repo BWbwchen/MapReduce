@@ -9,8 +9,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-type rpcClient interface {
-	connect(workerIP string) (*grpc.ClientConn, rpc.WorkerClient)
+type RpcClient interface {
+	Connect(workerIP string) (*grpc.ClientConn, rpc.WorkerClient)
 	Map(workerIP string, m *rpc.MapInfo) bool
 	Reduce(workerIP string, m *rpc.ReduceInfo) bool
 	End(workerIP string) bool
@@ -19,20 +19,18 @@ type rpcClient interface {
 
 type workerClient struct{}
 
-func (client *workerClient) connect(workerIP string) (*grpc.ClientConn, rpc.WorkerClient) {
+func (client *workerClient) Connect(workerIP string) (*grpc.ClientConn, rpc.WorkerClient) {
 	conn, err := grpc.Dial(workerIP, grpc.WithInsecure())
 	if err != nil {
 		log.Warn(err)
 		return nil, nil
 	}
 
-	c := rpc.NewWorkerClient(conn)
-
-	return conn, c
+	return conn, rpc.NewWorkerClient(conn)
 }
 
 func (client *workerClient) Map(workerIP string, m *rpc.MapInfo) bool {
-	conn, c := client.connect(workerIP)
+	conn, c := client.Connect(workerIP)
 	if conn == nil {
 		return false
 	}
@@ -50,7 +48,7 @@ func (client *workerClient) Map(workerIP string, m *rpc.MapInfo) bool {
 }
 
 func (client *workerClient) Reduce(workerIP string, m *rpc.ReduceInfo) bool {
-	conn, c := client.connect(workerIP)
+	conn, c := client.Connect(workerIP)
 	if conn == nil {
 		return false
 	}
@@ -68,7 +66,7 @@ func (client *workerClient) Reduce(workerIP string, m *rpc.ReduceInfo) bool {
 }
 
 func (client *workerClient) End(workerIP string) bool {
-	conn, c := client.connect(workerIP)
+	conn, c := client.Connect(workerIP)
 	if conn == nil {
 		return false
 	}
@@ -83,7 +81,7 @@ func (client *workerClient) End(workerIP string) bool {
 }
 
 func (client *workerClient) Health(workerIP string) int {
-	conn, c := client.connect(workerIP)
+	conn, c := client.Connect(workerIP)
 	if conn == nil {
 		return int(WORKER_UNKNOWN)
 	}
