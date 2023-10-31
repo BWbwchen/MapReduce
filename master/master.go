@@ -173,7 +173,7 @@ func lineNums(file string) int {
 	return num
 }
 
-func (ms *Master) orDone(finish, crashChan <-chan string) <-chan string {
+func (ms *Master) orDone(finish, crashChan <-chan string, numberOfTasks int) <-chan string {
 	count := 0
 	valStream := make(chan string)
 	go func() {
@@ -182,13 +182,13 @@ func (ms *Master) orDone(finish, crashChan <-chan string) <-chan string {
 			select {
 			case <-finish:
 				count += 1
-				if count == len(ms.MapTasks) {
+				if count == numberOfTasks {
 					return
 				}
 			case crashUUID, ok := <-crashChan:
 				if !ok {
-					if count != len(ms.MapTasks) {
-						log.Panic("faild to distribute all MapTask")
+					if count != numberOfTasks {
+						log.Panic("faild to distribute all Tasks")
 						return
 					}
 				}
@@ -230,7 +230,7 @@ func (ms *Master) distributeMapTask() {
 		workerID = (workerID + 1) % nWorkers
 	}
 
-	for crashUUID := range ms.orDone(finish, ms.crashChan) {
+	for crashUUID := range ms.orDone(finish, ms.crashChan, len(ms.MapTasks)) {
 		workers, _ := ms.availableWorkers(1)
 		log.Info("[Master] Re-execute Map Task from ", crashUUID, " To ", workers[0].UUID)
 		if crashUUID == workers[0].UUID {
@@ -287,7 +287,7 @@ func (ms *Master) distributeReduceTask() {
 		workerID = (workerID + 1) % nWorkers
 	}
 
-	for crashUUID := range ms.orDone(finish, ms.crashChan) {
+	for crashUUID := range ms.orDone(finish, ms.crashChan, len(ms.ReduceTasks)) {
 		workers, _ = ms.availableWorkers(1)
 
 		log.Info("[Master] Re-execute Map Task from ", crashUUID, "To ", workers[0].UUID)
