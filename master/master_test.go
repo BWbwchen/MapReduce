@@ -9,14 +9,27 @@ import (
 	"github.com/BWbwchen/MapReduce/rpc"
 )
 
-var master *Master
-
-func init() {
-	master = NewMaster(2, 1).(*Master)
+func TestWorkerRegister(t *testing.T) {
+	master := NewMaster(2, 1).(*Master)
 	master.client = mocks.WorkerClient{}
+	info := rpc.WorkerInfo{
+		Uuid: "uuid",
+		Ip:   "ip",
+	}
+	master.WorkerRegister(context.Background(), &info)
+
+	if master.numWorkers != 1 {
+		t.Error("number of workers is not correct!")
+	}
+	workerInfo := WorkerInfo{UUID: "uuid", IP: "ip", WorkerState: WORKER_IDLE}
+	if master.Workers[0] != workerInfo {
+		t.Error("worker info is not correct")
+	}
 }
 
 func TestDistributeWork(t *testing.T) {
+	master := NewMaster(2, 1).(*Master)
+	master.client = mocks.WorkerClient{}
 
 	fileNames, err := createTestFiles()
 	if err != nil {
@@ -36,35 +49,97 @@ func TestDistributeWork(t *testing.T) {
 }
 
 func TestDistributeMapTask(t *testing.T) {
-	info := rpc.WorkerInfo{
-		Uuid: "uuid",
-		Ip:   "ip",
-	}
-	info1 := rpc.WorkerInfo{
-		Uuid: "uuid1",
-		Ip:   "ip1",
-	}
+	master := NewMaster(2, 1).(*Master)
+	master.client = mocks.WorkerClient{}
 
-	master.WorkerRegister(context.Background(), &info)
-	master.WorkerRegister(context.Background(), &info1)
+	workerInfo := WorkerInfo{UUID: "uuid", IP: "ip", WorkerState: WORKER_IDLE}
+	workerInfo1 := WorkerInfo{UUID: "uuid1", IP: "ip1", WorkerState: WORKER_IDLE}
 
+	mapTaskFile := "test"
+
+	master.MapTasks = []MapTaskInfo{{}}
+	master.MapTasks[0].addFile(mapTaskFile, 0, 1)
+	master.Workers = append(master.Workers, workerInfo, workerInfo1)
+
+	mocks.Result = true
 	master.distributeMapTask()
+	req, _ := mocks.Request.(*rpc.MapInfo)
+	if req.Files[0].FileName != mapTaskFile || req.Files[0].From != 0 || req.Files[0].To != 1 {
+		t.Error("request to worker is not correct")
+	}
+}
 
+func TestDistributeMapTaskFailsTolerant(t *testing.T) {
+	master := NewMaster(2, 1).(*Master)
+	master.client = mocks.WorkerClient{}
+
+	workerInfo := WorkerInfo{UUID: "uuid", IP: "ip", WorkerState: WORKER_IDLE}
+	workerInfo1 := WorkerInfo{UUID: "uuid1", IP: "ip1", WorkerState: WORKER_IDLE}
+
+	mapTaskFile := "test"
+
+	master.MapTasks = []MapTaskInfo{{}}
+	master.MapTasks[0].addFile(mapTaskFile, 0, 1)
+	master.Workers = append(master.Workers, workerInfo, workerInfo1)
+
+	mocks.Result = false
+	master.distributeMapTask()
+	req, _ := mocks.Request.(*rpc.MapInfo)
+	if req.Files[0].FileName != mapTaskFile || req.Files[0].From != 0 || req.Files[0].To != 1 {
+		t.Error("request to worker is not correct")
+	}
 }
 
 func TestDistributeReduceTask(t *testing.T) {
-	info := rpc.WorkerInfo{
-		Uuid: "uuid",
-		Ip:   "ip",
-	}
-	info1 := rpc.WorkerInfo{
-		Uuid: "uuid1",
-		Ip:   "ip1",
-	}
+	master := NewMaster(2, 1).(*Master)
+	master.client = mocks.WorkerClient{}
 
-	master.WorkerRegister(context.Background(), &info)
-	master.WorkerRegister(context.Background(), &info1)
+	workerInfo := WorkerInfo{UUID: "uuid", IP: "ip", WorkerState: WORKER_IDLE}
+	workerInfo1 := WorkerInfo{UUID: "uuid1", IP: "ip1", WorkerState: WORKER_IDLE}
 
+	IMDFileName := "testReduceTasks"
+
+	master.ReduceTasks = []ReduceTaskInfo{{IMDs: []IMDInfo{
+		{FileName: IMDFileName},
+	}}}
+
+	master.Workers = append(master.Workers, workerInfo, workerInfo1)
+
+	mocks.Result = true
+	master.distributeReduceTask()
+	req, _ := mocks.Request.(*rpc.ReduceInfo)
+	if req.Files[0].Filename != IMDFileName {
+		t.Error("request to worker is not correct")
+	}
+}
+
+func TestDistributeReduceTaskFailsTolerant(t *testing.T) {
+	master := NewMaster(2, 1).(*Master)
+	master.client = mocks.WorkerClient{}
+
+	workerInfo := WorkerInfo{UUID: "uuid", IP: "ip", WorkerState: WORKER_IDLE}
+	workerInfo1 := WorkerInfo{UUID: "uuid1", IP: "ip1", WorkerState: WORKER_IDLE}
+
+	IMDFileName := "testReduceTasks"
+
+	master.ReduceTasks = []ReduceTaskInfo{{IMDs: []IMDInfo{
+		{FileName: IMDFileName},
+	}}}
+
+	master.Workers = append(master.Workers, workerInfo, workerInfo1)
+
+	mocks.Result = false
+	master.distributeReduceTask()
+	req, _ := mocks.Request.(*rpc.ReduceInfo)
+	if req.Files[0].Filename != IMDFileName {
+		t.Error("request to worker is not correct")
+	}
+}
+
+func TestEndWorkers(t *testing.T) {
+	master := NewMaster(2, 1).(*Master)
+	master.client = mocks.WorkerClient{}
+	master.endWorkers()
 }
 
 func createTestFiles() ([]string, error) {
