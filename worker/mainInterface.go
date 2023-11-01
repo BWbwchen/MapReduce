@@ -30,7 +30,7 @@ func StartWorker(pluginFile string, nReduce int, addr string, storeInRAM bool) {
 	log.Info("Worker load plugin finish")
 
 	// Register itself
-	id := WorkerRegister(&rpc.WorkerInfo{
+	id := wr.(*Worker).Client.WorkerRegister(&rpc.WorkerInfo{
 		Uuid: wr.(*Worker).UUID,
 		Ip:   addr,
 	})
@@ -41,10 +41,8 @@ func StartWorker(pluginFile string, nReduce int, addr string, storeInRAM bool) {
 	baseServer.Stop()
 }
 
-//
 // load the application Map and Reduce functions
 // from a plugin file, e.g. .so files
-//
 func loadPlugin(filename string) (func(string, string, MrContext), func(string, []string, MrContext)) {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		log.Panic(err)

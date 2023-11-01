@@ -27,16 +27,19 @@ type Worker struct {
 	EndChan    chan bool
 	storeInRAM bool
 	State      rpc.WorkerState_State
+	Client     RpcClient
 	mux        sync.Mutex
 	rpc.UnimplementedWorkerServer
 }
 
 func newWorker(nReduce int, inRAM bool) rpc.WorkerServer {
+	conn, master := Connect()
 	return &Worker{
 		UUID:       uuid.New().String(),
 		nReduce:    nReduce,
 		Chan:       newMrContext(),
 		EndChan:    make(chan bool),
+		Client:     &masterClient{master: master, conn: conn},
 		storeInRAM: inRAM,
 		State:      rpc.WorkerState_IDLE,
 	}
@@ -96,7 +99,7 @@ LOOP:
 
 	log.Trace("[Worker] Tell Master the intermediate info")
 	// Return to the Master
-	UpdateIMDInfo(&rpc.IMDInfo{
+	wr.Client.UpdateIMDInfo(&rpc.IMDInfo{
 		Uuid:      wr.UUID,
 		Filenames: filenames,
 	})
@@ -192,7 +195,7 @@ func (wr *Worker) Reduce(ctx context.Context, in *rpc.ReduceInfo) (*rpc.Result, 
 	log.Trace("[Worker] Get intermediate file")
 	var imdKVs []KV
 	for _, fInfo := range in.Files {
-		imdKVs = append(imdKVs, GetIMDData(fInfo.Ip, fInfo.Filename)...)
+		imdKVs = append(imdKVs, wr.Client.GetIMDData(fInfo.Ip, fInfo.Filename)...)
 	}
 
 	log.Trace("[Worker] Sort intermediate KV")

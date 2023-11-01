@@ -44,7 +44,6 @@ func (ms *Master) WorkerRegister(ctx context.Context, in *rpc.WorkerInfo) (*rpc.
 	var num int
 	ms.mux.Lock()
 	ms.Workers = append(ms.Workers, newWorker(in.Uuid, in.Ip))
-	fmt.Printf("ms.Workers: %v\n", ms.Workers)
 	ms.numWorkers++
 
 	num = ms.numWorkers
@@ -173,7 +172,7 @@ func lineNums(file string) int {
 	return num
 }
 
-func (ms *Master) orDone(finish, crashChan <-chan string, numberOfTasks int) <-chan string {
+func orDone(finish, crashChan <-chan string, numberOfTasks int) <-chan string {
 	count := 0
 	valStream := make(chan string)
 	go func() {
@@ -230,7 +229,7 @@ func (ms *Master) distributeMapTask() {
 		workerID = (workerID + 1) % nWorkers
 	}
 
-	for crashUUID := range ms.orDone(finish, ms.crashChan, len(ms.MapTasks)) {
+	for crashUUID := range orDone(finish, ms.crashChan, len(ms.MapTasks)) {
 		workers, _ := ms.availableWorkers(1)
 		log.Info("[Master] Re-execute Map Task from ", crashUUID, " To ", workers[0].UUID)
 		if crashUUID == workers[0].UUID {
@@ -287,7 +286,7 @@ func (ms *Master) distributeReduceTask() {
 		workerID = (workerID + 1) % nWorkers
 	}
 
-	for crashUUID := range ms.orDone(finish, ms.crashChan, len(ms.ReduceTasks)) {
+	for crashUUID := range orDone(finish, ms.crashChan, len(ms.ReduceTasks)) {
 		workers, _ = ms.availableWorkers(1)
 
 		log.Info("[Master] Re-execute Map Task from ", crashUUID, "To ", workers[0].UUID)
