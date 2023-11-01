@@ -7,6 +7,7 @@ import (
 	"github.com/BWbwchen/MapReduce/rpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 type RpcClient interface {
@@ -41,7 +42,14 @@ func (client *workerClient) Map(workerIP string, m *rpc.MapInfo) bool {
 
 	r, err := c.Map(ctx, m)
 	if err != nil {
-		log.Warn("[Master]: " + err.Error())
+		respErr, ok := status.FromError(err)
+		if ok {
+			//actual error from gRPC
+			//todo: we can improve error handling by using grpc statusCodes()
+			log.Warn("[Master]: " + respErr.Message())
+		} else {
+			log.Warn("[Master]: " + err.Error())
+		}
 		return false
 	}
 	return r.Result
@@ -59,7 +67,14 @@ func (client *workerClient) Reduce(workerIP string, m *rpc.ReduceInfo) bool {
 
 	r, err := c.Reduce(ctx, m)
 	if err != nil {
-		log.Warn("[Master]: " + err.Error())
+		respErr, ok := status.FromError(err)
+		if ok {
+			//actual error from gRPC
+			//todo: we can improve error handling by using grpc statusCodes(respErr.Code())
+			log.Warn("[Master]: " + respErr.Message())
+		} else {
+			log.Warn("[Master]: " + err.Error())
+		}
 		return false
 	}
 	return r.Result
@@ -75,7 +90,18 @@ func (client *workerClient) End(workerIP string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	c.End(ctx, &rpc.Empty{})
+	_, err := c.End(ctx, &rpc.Empty{})
+	if err != nil {
+		respErr, ok := status.FromError(err)
+		if ok {
+			//actual error from gRPC
+			//todo: we can improve error handling by using grpc statusCodes(respErr.Code())
+			log.Warn("[Master]: " + respErr.Message())
+		} else {
+			log.Warn("[Master]: " + err.Error())
+		}
+		return false
+	}
 
 	return true
 }
@@ -92,6 +118,14 @@ func (client *workerClient) Health(workerIP string) int {
 
 	r, err := c.Health(ctx, &rpc.Empty{})
 	if err != nil {
+		respErr, ok := status.FromError(err)
+		if ok {
+			//actual error from gRPC
+			//todo: we can improve error handling by using grpc statusCodes(respErr.Code())
+			log.Warn("[Master]: " + respErr.Message())
+		} else {
+			log.Warn("[Master]: " + err.Error())
+		}
 		return int(WORKER_UNKNOWN)
 	}
 
