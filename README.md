@@ -6,6 +6,10 @@
 
 This is an easy-to-use Map Reduce Go framework inspired by [2021 6.824 lab1](http://nil.csail.mit.edu/6.824/2021/labs/lab-mr.html).
 
+![mapReduce](https://github.com/kiarash8112/MapReduce/assets/133909368/03c6b149-213c-4906-91b7-a05c4f083c9e)
+
+
+
 ## Feature
 - Multiple workers goroutine in a program on a single machine.
 - Multiple workers process in separate program on a single machine.
