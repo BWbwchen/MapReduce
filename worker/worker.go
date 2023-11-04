@@ -33,7 +33,7 @@ type Worker struct {
 }
 
 func newWorker(nReduce int, inRAM bool) rpc.WorkerServer {
-	conn, master := Connect()
+	conn, master := Connect(MasterIP)
 	return &Worker{
 		UUID:       uuid.New().String(),
 		nReduce:    nReduce,

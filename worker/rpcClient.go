@@ -23,8 +23,8 @@ type masterClient struct {
 	conn   *grpc.ClientConn
 }
 
-func Connect() (*grpc.ClientConn, rpc.MasterClient) {
-	conn, err := grpc.Dial(MasterIP, grpc.WithInsecure())
+func Connect(ip string) (*grpc.ClientConn, rpc.MasterClient) {
+	conn, err := grpc.Dial(ip, grpc.WithInsecure())
 	if err != nil {
 		log.Warn(err)
 	}
@@ -82,7 +82,9 @@ func (client *masterClient) UpdateIMDInfo(u *rpc.IMDInfo) bool {
 }
 
 func (client *masterClient) GetIMDData(ip string, filename string) []KV {
-	c := rpc.NewWorkerClient(client.conn)
+	conn, _ := Connect(ip)
+
+	c := rpc.NewWorkerClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
