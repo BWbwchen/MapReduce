@@ -21,23 +21,26 @@ func StartWorker(pluginFile string, nReduce int, addr string, storeInRAM bool) {
 	// start gRPC server
 	listener, _ := net.Listen("tcp", addr)
 	wr := newWorker(nReduce, storeInRAM)
+	workerStruct := wr.(*Worker)
 	baseServer := grpc.NewServer()
 	rpc.RegisterWorkerServer(baseServer, wr)
 	go baseServer.Serve(listener)
 	log.Info("Worker gRPC server start")
 
-	wr.(*Worker).Mapf, wr.(*Worker).Reducef = loadPlugin(pluginFile)
+	workerStruct.Mapf, workerStruct.Reducef = loadPlugin(pluginFile)
 	log.Info("Worker load plugin finish")
 
 	// Register itself
-	id := wr.(*Worker).Client.WorkerRegister(&rpc.WorkerInfo{
-		Uuid: wr.(*Worker).UUID,
+	id := workerStruct.Client.WorkerRegister(&rpc.WorkerInfo{
+		Uuid: workerStruct.UUID,
 		Ip:   addr,
 	})
-	wr.(*Worker).setID(id)
+	workerStruct.setID(id)
 	log.Info("Worker register itself finish")
 
-	<-wr.(*Worker).EndChan
+	defer workerStruct.Client.(*masterClient).conn.Close()
+
+	<-workerStruct.EndChan
 	baseServer.Stop()
 }
 
