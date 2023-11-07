@@ -42,6 +42,8 @@ func StartWorker(pluginFile string, nReduce int, addr string, storeInRAM bool) {
 	defer workerStruct.Client.(*masterClient).conn.Close()
 
 	<-workerStruct.EndChan
+
+	// Sleep for a while for waiting the End Grpc response sent to master
 	time.Sleep(500 * time.Millisecond)
 	baseServer.Stop()
 }
