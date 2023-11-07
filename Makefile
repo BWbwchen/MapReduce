@@ -10,6 +10,9 @@ clean :
 	-rm output/*
 	-rm cmd/*.so
 
+test:
+	go test -v ./master
+
 grpc :
 	protoc --go-grpc_out=rpc --go_out=rpc rpc/*.proto
 
