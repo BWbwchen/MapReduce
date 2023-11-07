@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"plugin"
+	"time"
 
 	"github.com/BWbwchen/MapReduce/rpc"
 	log "github.com/sirupsen/logrus"
@@ -41,6 +42,7 @@ func StartWorker(pluginFile string, nReduce int, addr string, storeInRAM bool) {
 	defer workerStruct.Client.(*masterClient).conn.Close()
 
 	<-workerStruct.EndChan
+	time.Sleep(500 * time.Millisecond)
 	baseServer.Stop()
 }
 
